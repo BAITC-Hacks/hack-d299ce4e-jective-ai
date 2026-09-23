@@ -1,21 +1,65 @@
 import { createAnalysisController } from '../features/tasks/analysis-controller.js';
 import { createScoringController } from '../features/tasks/scoring-controller.js';
+import { createVoiceController } from '../features/tasks/voice-controller.js';
 import { missingFeedback } from '../pages/task-editor.js';
 import { createTaskActions } from '../features/tasks/actions.js';
 import { createProposalActions } from '../features/proposals/actions.js';
 import { createAuthActions } from '../features/auth/actions.js';
+import { createTaskAnalysisService } from '../services/ai/taskAnalysis.js';
 
 /** One delegated event layer; feature modules own business actions. */
 export function bindEvents(context) {
-  const { store, router, feedback } = context;
+  const { store, router, feedback, attachments } = context;
   const scoring = createScoringController(context);
   const tasks = createTaskActions({ ...context, scoring });
-  const analysis = createAnalysisController({ ...context, scoring });
+  const analysis = createAnalysisController({
+    ...context,
+    scoring,
+    service: createTaskAnalysisService({ getAccessToken: context.getAccessToken }),
+  });
+  const voice = createVoiceController({
+    ...context,
+    appendText(target, text) {
+      const state = store.getState();
+      const questionId = target.startsWith('answer:') ? target.slice(7) : null;
+      if (questionId && !state.taskAnalysis?.questions.some((q) => q.id === questionId)) return;
+      const existing = questionId
+        ? state.taskAnalysis.answers[questionId] || ''
+        : state.description;
+      const combined = [existing.trimEnd(), text].filter(Boolean).join('\n');
+      if (combined.length > 10000)
+        throw new Error(
+          'В поле получится больше 10 000 символов. Сократите текст и повторите распознавание.',
+        );
+      if (questionId) analysis.setAnswer(questionId, combined);
+      else store.update((state) => ({ ...state, description: combined }));
+    },
+  });
   const auth = createAuthActions(context);
   const actions = {
     ...tasks.actions,
     ...analysis.actions,
     'score-task': () => scoring.score(),
+    'voice-start': (element) => voice.start(element.dataset.voiceTarget),
+    'voice-stop': () => voice.stop(),
+    'voice-cancel': () => voice.cancel(),
+    'voice-retry': () => voice.retry(),
+    'attachments-reload': () => attachments.load(true),
+    'attachment-retry': (element) => attachments.retry(element.dataset.id),
+    'attachment-remove': (element) => attachments.remove(element.dataset.id),
+    'attachment-download': async (element) => {
+      const data = await attachments.download(element.dataset.id);
+      if (data) {
+        const link = document.createElement('a');
+        link.href = data.url;
+        link.download = data.name;
+        link.rel = 'noopener';
+        link.target = '_blank';
+        document.body.append(link);
+        link.click();
+        link.remove();
+      }
+    },
     ...createProposalActions(context),
     forgot: auth.forgot,
     logout: auth.logout,
@@ -26,7 +70,7 @@ export function bindEvents(context) {
   const listen = (type, handler) =>
     document.addEventListener(type, handler, { signal: controller.signal });
 
-  function dispatch(name) {
+  function dispatch(name, element) {
     const publicActions = ['forgot', 'close', 'logout', 'retry-auth', 'retry-catalog'];
     if (
       Object.hasOwn(actions, name) &&
@@ -36,7 +80,7 @@ export function bindEvents(context) {
       router.navigate('login');
       return;
     }
-    if (Object.hasOwn(actions, name)) actions[name]();
+    if (Object.hasOwn(actions, name)) actions[name](element);
     else router.navigate(name);
   }
 
@@ -46,6 +90,7 @@ export function bindEvents(context) {
     );
     if (!element) return;
     const { action, route, role, edit, close, scroll } = element.dataset;
+    if ((action && !action.startsWith('voice-')) || route || edit) voice.cancel(false);
     if (close && event.target === element) return feedback.closeModal();
     if (scroll) {
       document.getElementById(scroll)?.scrollIntoView({
@@ -65,7 +110,7 @@ export function bindEvents(context) {
       return;
     }
     if (route) return router.navigate(route);
-    if (action) dispatch(action);
+    if (action) dispatch(action, element);
   });
 
   listen('submit', (event) => {
@@ -108,6 +153,14 @@ export function bindEvents(context) {
   });
 
   listen('change', (event) => {
+    if (event.target.id === 'task-attachments') {
+      void attachments.add(event.target.files);
+      return;
+    }
+    if (event.target.dataset.attachmentSelect) {
+      attachments.toggle(event.target.dataset.attachmentSelect, event.target.checked);
+      return;
+    }
     const filter = event.target.dataset.filter;
     if (!['industry', 'direction', 'level', 'sort'].includes(filter)) return;
     store.update((state) => ({
@@ -119,6 +172,48 @@ export function bindEvents(context) {
   listen('keydown', (event) => {
     if (event.key === 'Escape') feedback.closeModal();
   });
+  listen('dragover', (event) => {
+    const zone = event.target.closest('[data-attachment-drop]');
+    if (zone) {
+      event.preventDefault();
+      zone.classList.add('dragging');
+    }
+  });
+  listen('dragleave', (event) =>
+    event.target.closest('[data-attachment-drop]')?.classList.remove('dragging'),
+  );
+  listen('drop', (event) => {
+    const zone = event.target.closest('[data-attachment-drop]');
+    if (zone) {
+      event.preventDefault();
+      zone.classList.remove('dragging');
+      void attachments.add(event.dataTransfer.files);
+    }
+  });
+  listen('paste', (event) => {
+    if (!document.querySelector('#task-attachments')) return;
+    const images = Array.from(event.clipboardData?.files || []).filter((file) =>
+      file.type.startsWith('image/'),
+    );
+    if (images.length) {
+      event.preventDefault();
+      void attachments.add(
+        images.map(
+          (file) =>
+            new File(
+              [file],
+              `screenshot-${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${file.type === 'image/jpeg' ? 'jpg' : file.type === 'image/webp' ? 'webp' : 'png'}`,
+              { type: file.type },
+            ),
+        ),
+      );
+    }
+  });
 
-  return () => controller.abort();
+  window.addEventListener('hashchange', () => voice.cancel(false), { signal: controller.signal });
+  window.addEventListener('pagehide', () => voice.cancel(false), { signal: controller.signal });
+  return () => {
+    voice.dispose();
+    controller.abort();
+  };
 }

@@ -14,6 +14,9 @@ import { createAuthService } from './features/auth/service.js';
 import { createAuthController } from './features/auth/controller.js';
 import { syncAuthForm } from './features/auth/actions.js';
 import './styles/auth.css';
+import './styles/attachments.css';
+import { createAttachmentsClient } from './features/attachments/service.js';
+import { createAttachmentsController } from './features/attachments/controller.js';
 
 const root = document.querySelector('#app');
 const config = readConfig();
@@ -36,6 +39,14 @@ const authService = createAuthService({
   apiClient: createHttpClient({ baseUrl: config.apiBaseUrl }),
   redirectUrl: window.location.origin,
 });
+const getAccessToken = async () => (await authService.getSession())?.access_token;
+const attachments = createAttachmentsController({
+  store,
+  service: createAttachmentsClient({ getAccessToken }),
+  render: () => {
+    if (['#/create', '#/clarify', '#/editor'].includes(window.location.hash)) router.render();
+  },
+});
 const authController = createAuthController({
   store,
   service: authService,
@@ -47,6 +58,7 @@ const authController = createAuthController({
       feedback.toast(store.getState().auth.error);
   },
   onAuthenticated: ({ profile }) => {
+    if (profile.role === 'business') void attachments.load();
     if (
       !window.location.hash ||
       ['#/', '#/home', '#/login', '#/register'].includes(window.location.hash)
@@ -64,7 +76,15 @@ const catalog = createCatalogController({
       router.render();
   },
 });
-const unbind = bindEvents({ store, router, feedback, catalog, authController });
+const unbind = bindEvents({
+  store,
+  router,
+  feedback,
+  catalog,
+  authController,
+  attachments,
+  getAccessToken,
+});
 
 router.start();
 void authController.start().finally(() => {
@@ -90,6 +110,7 @@ if (import.meta.hot) {
     authController.dispose();
     supabase?.auth.stopAutoRefresh();
     catalog.dispose();
+    attachments.dispose();
     unbind();
     router.dispose();
     motion.dispose();

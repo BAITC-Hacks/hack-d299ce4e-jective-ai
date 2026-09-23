@@ -1,6 +1,7 @@
 import { initialAnalysis, fieldLabels, withMissingInformation } from '../../services/ai/types.js';
 import { taskAnalysisService } from '../../services/ai/taskAnalysis.js';
 import { createScoringController } from './scoring-controller.js';
+import { attachmentsBusy } from '../attachments/controller.js';
 
 export function createAnalysisController({
   store,
@@ -15,14 +16,39 @@ export function createAnalysisController({
     update(patch);
     router.render();
   };
+  let requestVersion = 0;
   async function request(operation) {
     if (['analyzing', 'generating'].includes(current().step)) return;
+    if (attachmentsBusy(store.getState())) return;
+    const version = ++requestVersion;
+    const owner = store.getState().auth?.user?.id;
+    const stillCurrent = () =>
+      version === requestVersion && owner === store.getState().auth?.user?.id;
+    const sources =
+      operation === 'analyzing'
+        ? (store.getState().attachments?.items || [])
+            .filter((i) => i.selected && i.status === 'ready')
+            .map((i) => ({ id: i.id, name: i.name }))
+        : current().attachmentSources || [];
     const originalDescription =
-      operation === 'analyzing' ? store.getState().description : current().originalDescription;
-    show({ step: operation, originalDescription, error: '', retry: operation });
+      operation === 'analyzing'
+        ? store.getState().description?.trim() ||
+          (sources.length ? 'Помогите сформулировать бизнес-задачу по приложенным материалам.' : '')
+        : current().originalDescription;
+    show({
+      step: operation,
+      originalDescription,
+      attachmentSources: sources,
+      error: '',
+      retry: operation,
+    });
     try {
       if (operation === 'analyzing') {
-        const response = await service.analyzeTaskDescription(originalDescription);
+        const response = await service.analyzeTaskDescription(
+          originalDescription,
+          sources.map((s) => s.id),
+        );
+        if (!stillCurrent()) return;
         show({
           ...response,
           step: 'questions',
@@ -36,10 +62,13 @@ export function createAnalysisController({
           originalDescription,
           questions,
           answers,
+          sources.map((s) => s.id),
         );
+        if (!stillCurrent()) return;
         show({ step: 'result', analysisResult });
       }
     } catch (error) {
+      if (!stillCurrent()) return;
       show({ step: 'error', error: error.message || 'Повторите попытку.' });
     }
   }
@@ -49,6 +78,8 @@ export function createAnalysisController({
       ...state,
       taskAnalysis: { ...current(), analysisResult: normalized },
       acceptedAnalysis: normalized,
+      acceptedAttachmentIds: (current().attachmentSources || []).map((s) => s.id),
+      attachmentDraftId: store.getState().attachments?.draftId || null,
       fields: Object.fromEntries(
         Object.entries(fieldLabels).map(([key, label]) => [label, normalized[key] || 'Не указано']),
       ),

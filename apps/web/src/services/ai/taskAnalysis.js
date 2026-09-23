@@ -42,22 +42,29 @@ export function validateResult(value) {
 }
 
 export function createTaskAnalysisService({
+  getAccessToken,
   client = createHttpClient({
     baseUrl: import.meta.env?.VITE_API_BASE_URL || '/api',
     timeoutMs: 75000,
   }),
 } = {}) {
   async function run(operation, payload, validate) {
+    const token = payload.attachmentIds?.length ? await getAccessToken?.() : null;
+    if (payload.attachmentIds?.length && !token)
+      throw new Error('Войдите снова, чтобы использовать прикреплённые файлы.');
     const value = await client.request(`ai/task-analysis/${operation}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify(payload),
     });
     return validate(value);
   }
-  function validateDescription(description) {
+  function validateDescription(description, hasAttachments = false) {
     if (!description?.trim()) throw new Error('Опишите задачу или проблему.');
-    if (description.trim().length < 20)
+    if (!hasAttachments && description.trim().length < 20)
       throw new Error('Добавьте подробности: минимум 20 символов.');
     if (description.length > 10000) throw new Error('Сократите описание до 10 000 символов.');
   }
@@ -92,14 +99,22 @@ export function createTaskAnalysisService({
         return value;
       });
     },
-    async analyzeTaskDescription(description) {
-      validateDescription(description);
-      return run('questions', { description }, validateQuestions);
+    async analyzeTaskDescription(description, attachmentIds = []) {
+      validateDescription(description, attachmentIds.length > 0);
+      return run(
+        'questions',
+        { description, ...(attachmentIds.length ? { attachmentIds } : {}) },
+        validateQuestions,
+      );
     },
-    async generateTaskFromAnswers(description, questions, answers) {
-      validateDescription(description);
+    async generateTaskFromAnswers(description, questions, answers, attachmentIds = []) {
+      validateDescription(description, attachmentIds.length > 0);
       validateQuestions({ questions, knownInformation: [], missingInformation: [] });
-      return run('generate', { description, questions, answers }, validateResult);
+      return run(
+        'generate',
+        { description, questions, answers, ...(attachmentIds.length ? { attachmentIds } : {}) },
+        validateResult,
+      );
     },
   };
 }
