@@ -133,6 +133,15 @@ export function landing() {
           .join('')}
       </div>
     </section>
+    <section class="final-cta" aria-labelledby="final-cta-title">
+      <div class="final-cta-grid" aria-hidden="true"></div>
+      <div class="final-cta-content">
+        <h2 id="final-cta-title">Реальные задачи.<br />Совместные решения.</h2>
+        <button class="btn primary final-cta-button" data-route="catalog">
+          Каталог задач ${I('arrow', 17)}
+        </button>
+      </div>
+    </section>
     <footer class="landing-footer">
       ${brand()}<span>Реальные задачи. Совместные решения.</span
       ><button class="text-btn" data-route="catalog">Каталог задач ↗</button>
