@@ -1,0 +1,15 @@
+{
+  "name": "@ai-sana/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@ai-sana/contracts": "*",
+    "@supabase/supabase-js": "^2.117.1"
+  }
+}

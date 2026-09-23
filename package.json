@@ -1,0 +1,34 @@
+{
+  "name": "ai-sana",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI Sana web and API workspaces",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "start": "npm run dev",
+    "dev": "node scripts/dev.js",
+    "dev:web": "npm run dev --workspace=@ai-sana/web --",
+    "dev:api": "npm run dev --workspace=@ai-sana/api",
+    "dev:full": "node scripts/dev.js",
+    "build": "npm run build --workspace=@ai-sana/web",
+    "preview": "npm run preview --workspace=@ai-sana/web --",
+    "lint": "eslint .",
+    "test": "npm run test --workspaces --if-present",
+    "check": "npm run lint && npm test && npm run build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "engines": {
+    "node": "^22.13.0 || >=24.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.9"
+  }
+}
