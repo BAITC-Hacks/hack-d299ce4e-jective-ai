@@ -5,6 +5,8 @@ import { createTaskRouter } from './modules/tasks/router.js';
 import { createAuthRouter } from './modules/auth/router.js';
 import { createSupabaseAuthService } from './modules/auth/service.js';
 import { HttpError } from './shared/http-error.js';
+import { createTaskAnalysisService } from './modules/task-analysis/service.js';
+import { handleAnalysis, resolveAnalysisOperation } from './modules/task-analysis/router.js';
 
 function sendJson(request, response, status, payload, headers = {}) {
   const body = JSON.stringify(payload);
@@ -26,13 +28,14 @@ function sendJson(request, response, status, payload, headers = {}) {
  */
 export function createApp({
   taskRepository = createDemoTaskRepository(),
-  authService = createSupabaseAuthService(),
   logger = console,
+  analysisService = createTaskAnalysisService(),
 } = {}) {
   const tasks = createTaskRouter(createTaskService(taskRepository));
   const auth = createAuthRouter(authService);
 
   return async function handleRequest(request, response) {
+    let analysisOperation;
     try {
       let url;
       try {
@@ -41,6 +44,12 @@ export function createApp({
         throw new HttpError(400, 'INVALID_URL', 'Invalid request URL.');
       }
 
+      analysisOperation = resolveAnalysisOperation(url.pathname);
+      if (analysisOperation) {
+        const data = await handleAnalysis(request, response, analysisService, analysisOperation);
+        sendJson(request, response, 200, { data });
+        return;
+      }
       const operation =
         url.pathname === API_PATHS.health
           ? () => ({ status: 'ok' })
@@ -65,7 +74,7 @@ export function createApp({
             message: expected ? error.message : 'Internal server error.',
           },
         },
-        status === 405 ? { Allow: 'GET, HEAD' } : {},
+        status === 405 ? { Allow: analysisOperation ? 'POST' : 'GET, HEAD' } : {},
       );
     }
   };

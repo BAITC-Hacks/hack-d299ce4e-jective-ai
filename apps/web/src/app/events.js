@@ -1,3 +1,6 @@
+import { createAnalysisController } from '../features/tasks/analysis-controller.js';
+import { createScoringController } from '../features/tasks/scoring-controller.js';
+import { missingFeedback } from '../pages/task-editor.js';
 import { createTaskActions } from '../features/tasks/actions.js';
 import { createProposalActions } from '../features/proposals/actions.js';
 import { createAuthActions } from '../features/auth/actions.js';
@@ -5,10 +8,14 @@ import { createAuthActions } from '../features/auth/actions.js';
 /** One delegated event layer; feature modules own business actions. */
 export function bindEvents(context) {
   const { store, router, feedback } = context;
-  const tasks = createTaskActions(context);
+  const scoring = createScoringController(context);
+  const tasks = createTaskActions({ ...context, scoring });
+  const analysis = createAnalysisController({ ...context, scoring });
   const auth = createAuthActions(context);
   const actions = {
     ...tasks.actions,
+    ...analysis.actions,
+    'score-task': () => scoring.score(),
     ...createProposalActions(context),
     forgot: auth.forgot,
     logout: auth.logout,
@@ -73,6 +80,14 @@ export function bindEvents(context) {
 
   listen('input', (event) => {
     const input = event.target;
+    if (input.dataset.analysisAnswer !== undefined)
+      analysis.setAnswer(input.dataset.analysisAnswer, input.value);
+    if (input.dataset.analysisField !== undefined) {
+      analysis.setResultField(input.dataset.analysisField, input.value);
+      const feedback = document.querySelector('#analysis-missing');
+      if (feedback)
+        feedback.innerHTML = missingFeedback(store.getState().taskAnalysis.analysisResult);
+    }
     if (input.dataset.answer !== undefined) {
       store.update((state) => ({
         ...state,
