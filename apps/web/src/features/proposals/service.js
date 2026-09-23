@@ -1,3 +1,5 @@
+import { dataErrorMessage } from '../../shared/data-error.js';
+
 export function createProposalsService(db) {
   function client() {
     if (!db) throw new Error('Сохранение временно недоступно.');
@@ -8,7 +10,10 @@ export function createProposalsService(db) {
       throw new Error(
         result.error.code === '23505'
           ? duplicate
-          : 'Не удалось загрузить или сохранить данные. Попробуйте позже.',
+          : dataErrorMessage(
+              result.error,
+              'Не удалось загрузить или сохранить данные. Попробуйте позже.',
+            ),
       );
     return result.data;
   }

@@ -1,3 +1,5 @@
+import { dataErrorMessage } from '../../shared/data-error.js';
+
 export const profileFields = {
   full_name: ['Имя и фамилия', 120],
   headline: ['Должность или специализация', 160],
@@ -54,7 +56,10 @@ export function createProfilesService(supabase) {
   function check(result) {
     if (result.error)
       throw new Error(
-        'Не удалось сохранить или загрузить профиль. Проверьте соединение и попробуйте снова.',
+        dataErrorMessage(
+          result.error,
+          'Не удалось сохранить или загрузить профиль. Проверьте соединение и попробуйте снова.',
+        ),
       );
     return result.data;
   }
