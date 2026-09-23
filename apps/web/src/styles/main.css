@@ -1,0 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import './legacy.css' layer(components);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+/* Keep the prototype's browser defaults; intentionally omit Preflight. */
