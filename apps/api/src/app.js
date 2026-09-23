@@ -2,6 +2,9 @@ import { API_PATHS } from '@ai-sana/contracts';
 import { createSupabaseTaskRepository } from './modules/tasks/repository.js';
 import { createTaskService } from './modules/tasks/service.js';
 import { createTaskRouter } from './modules/tasks/router.js';
+import { createSupabaseProposalRepository } from './modules/proposals/repository.js';
+import { createProposalRouter } from './modules/proposals/router.js';
+import { createProposalService } from './modules/proposals/service.js';
 import { createAuthRouter } from './modules/auth/router.js';
 import { createSupabaseAuthService } from './modules/auth/service.js';
 import { HttpError } from './shared/http-error.js';
@@ -34,18 +37,27 @@ function sendJson(request, response, status, payload, headers = {}) {
  *   logger?: Pick<Console, 'error'> }} [options]
  */
 export function createApp({
-  taskRepository = createSupabaseTaskRepository(),
-  proposalRepository = createSupabaseProposalRepository(),
-  authService = createSupabaseAuthService(),
+  supabaseConfig = null,
+  clientFactory,
+  taskRepository = createSupabaseTaskRepository({ config: supabaseConfig, clientFactory }),
+  proposalRepository = createSupabaseProposalRepository({ config: supabaseConfig, clientFactory }),
+  authService = createSupabaseAuthService({ config: supabaseConfig, clientFactory }),
   logger = console,
   analysisService = createTaskAnalysisService(),
   transcriptionService = createTranscriptionService(),
-  attachmentsService = createAttachmentsService(),
+  attachmentsService = createAttachmentsService({ config: supabaseConfig, clientFactory }),
 } = {}) {
   const tasks = createTaskRouter(createTaskService(taskRepository, authService));
   const proposals = createProposalRouter(createProposalService(proposalRepository, authService));
   const auth = createAuthRouter(authService);
   const attachments = createAttachmentsRouter(attachmentsService, authService);
+  async function requireAiAccess(request) {
+    if (request.method !== 'POST')
+      throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Only POST is supported.');
+    const { profile } = await authService.getCurrentUser(request);
+    if (profile.role !== 'business')
+      throw new HttpError(403, 'AI_FORBIDDEN', 'AI-анализ доступен только бизнес-профилю.');
+  }
   async function attachmentContexts(request, ids) {
     if (ids === undefined || (Array.isArray(ids) && ids.length === 0)) return [];
     const userId = await requireBusiness(authService, request);
@@ -90,12 +102,16 @@ export function createApp({
       }
       if (url.pathname === '/api/ai/task-analysis/transcribe') {
         analysisOperation = 'transcribe';
+        allowedMethods = ['POST'];
+        await requireAiAccess(request);
         const data = await handleTranscription(request, response, transcriptionService);
         sendJson(request, response, 200, { data });
         return;
       }
       analysisOperation = resolveAnalysisOperation(url.pathname);
       if (analysisOperation) {
+        allowedMethods = ['POST'];
+        await requireAiAccess(request);
         const data = await handleAnalysis(
           request,
           response,
@@ -139,7 +155,7 @@ export function createApp({
             message: expected ? error.message : 'Internal server error.',
           },
         },
-        status === 405 ? { Allow: error.allow || (analysisOperation ? 'POST' : 'GET, HEAD') } : {},
+        status === 405 ? { Allow: error.allow || allowedMethods.join(', ') } : {},
       );
     }
   };

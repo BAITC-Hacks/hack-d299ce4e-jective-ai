@@ -198,3 +198,105 @@ test('filenames, extracted facts and error messages are escaped', () => {
   assert.ok(!html.includes('<img src=x>'));
   assert.match(html, /&lt;script&gt;/);
 });
+
+test('restored workspace draft and excluded files take precedence over local draft storage', async () => {
+  const restored = '44444444-4444-4444-8444-444444444444';
+  const s = setup({
+    list: async (draftId, scope) => {
+      assert.equal(draftId, restored);
+      assert.equal(scope.userId, owner);
+      return [{ ...saved, draft_id: restored, extracted_context: extraction }];
+    },
+  });
+  s.storage.setItem(`ai-sana:attachment-draft:${owner}`, draft);
+  s.store.update((state) => ({ ...state, attachmentDraftId: restored, attachmentSelectedIds: [] }));
+  await s.controller.load();
+  assert.equal(s.store.getState().attachments.draftId, restored);
+  assert.equal(s.store.getState().attachments.items[0].selected, false);
+  s.controller.toggle(id, true);
+  assert.deepEqual(s.store.getState().attachmentSelectedIds, [id]);
+});
+
+test('new draft ignores late uploads and does not analyze the previous task file', async () => {
+  let finish,
+    analyzed = 0;
+  const s = setup({
+    upload: () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    analyze: async () => {
+      analyzed++;
+    },
+  });
+  await s.controller.load();
+  const pending = s.controller.add([new File(['data'], 'test.txt')]);
+  s.store.update((state) => ({
+    ...state,
+    attachmentDraftId: '44444444-4444-4444-8444-444444444444',
+    attachments: { status: 'idle', items: [], error: '' },
+  }));
+  await s.controller.load();
+  finish(saved);
+  await pending;
+  assert.equal(analyzed, 0);
+  assert.deepEqual(s.store.getState().attachments.items, []);
+});
+
+test('reset clears private attachment UI and prevents a previous account request restoring it', async () => {
+  let finish;
+  const s = setup({
+    list: () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  });
+  const pending = s.controller.load();
+  s.controller.reset();
+  finish([{ ...saved, extracted_context: extraction }]);
+  await pending;
+  assert.equal(s.store.getState().attachmentDraftId, null);
+  assert.equal(s.store.getState().attachments.status, 'idle');
+  assert.deepEqual(s.store.getState().attachments.items, []);
+});
+
+test('accepting file-only AI analysis preserves a publishable original description', async () => {
+  const { store } = setup();
+  const description = 'Помогите сформулировать бизнес-задачу по приложенным материалам.';
+  store.update((s) => ({
+    ...s,
+    description: '',
+    taskAnalysis: {
+      step: 'result',
+      originalDescription: description,
+      attachmentSources: [{ id, name: 'test.txt' }],
+      analysisResult: { title: 'Задача', need: 'Потребность', expectedResult: 'Результат' },
+    },
+  }));
+  const controller = createAnalysisController({
+    store,
+    router: { render() {}, navigate() {} },
+    scoring: { score() {} },
+  });
+  controller.actions['analysis-accept']();
+  assert.equal(store.getState().description, description);
+  assert.deepEqual(store.getState().acceptedAttachmentIds, [id]);
+});
+
+test('a same-user token refresh does not strand an in-flight attachment load', async () => {
+  let finish;
+  const s = setup({
+    list: () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  });
+  const pending = s.controller.load();
+  s.store.update((state) => ({ ...state, auth: { ...state.auth, status: 'initializing' } }));
+  finish([{ ...saved, extracted_context: extraction }]);
+  await pending;
+  assert.equal(s.store.getState().attachments.status, 'ready');
+  assert.equal(s.store.getState().attachments.items[0].status, 'ready');
+  await s.controller.add([new File(['another'], 'other.txt')]);
+  assert.equal(s.store.getState().attachments.items.length, 1);
+});

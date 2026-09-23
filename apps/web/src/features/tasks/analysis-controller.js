@@ -23,8 +23,11 @@ export function createAnalysisController({
     if (attachmentsBusy(store.getState())) return;
     const version = ++requestVersion;
     const owner = store.getState().auth?.user?.id;
+    const scope = workspace?.scope();
     const stillCurrent = () =>
-      version === requestVersion && owner === store.getState().auth?.user?.id;
+      version === requestVersion &&
+      owner === store.getState().auth?.user?.id &&
+      (!workspace || workspace.isCurrent(scope));
     const sources =
       operation === 'analyzing'
         ? (store.getState().attachments?.items || [])
@@ -46,7 +49,7 @@ export function createAnalysisController({
     try {
       if (workspace && !(await workspace.flush()))
         throw new Error('Сначала сохраните черновик в Supabase: повторите синхронизацию.');
-      if (!isCurrent()) return;
+      if (!stillCurrent()) return;
       if (operation === 'analyzing') {
         const response = await service.analyzeTaskDescription(
           originalDescription,
@@ -81,6 +84,7 @@ export function createAnalysisController({
     const normalized = withMissingInformation(result);
     store.update((state) => ({
       ...state,
+      description: state.description.trim() || current().originalDescription,
       taskAnalysis: { ...current(), analysisResult: normalized },
       acceptedAnalysis: normalized,
       acceptedAttachmentIds: (current().attachmentSources || []).map((s) => s.id),
@@ -113,7 +117,16 @@ export function createAnalysisController({
       'analysis-description': () => show({ step: 'description' }),
       'analysis-back': () => show({ currentQuestion: Math.max(0, current().currentQuestion - 1) }),
       'analysis-next': async () => {
+        if (current().step !== 'questions') return;
+        const index = current().currentQuestion;
+        const scope = workspace?.scope();
         if (workspace && !(await workspace.flush())) return;
+        if (
+          current().step !== 'questions' ||
+          current().currentQuestion !== index ||
+          (workspace && !workspace.isCurrent(scope))
+        )
+          return;
         return current().currentQuestion + 1 < current().questions.length
           ? show({ currentQuestion: current().currentQuestion + 1 })
           : request('generating');

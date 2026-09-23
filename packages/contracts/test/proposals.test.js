@@ -39,6 +39,7 @@ test('proposal contract rejects forged identity, missing fields, excessive size 
     null,
     [],
     { ...input, studentId: 'spoofed' },
+    { ...input, counterpartId: '550e8400-e29b-41d4-a716-446655440000' },
     { ...input, id: 'spoofed' },
     { ...input, createdAt: 'spoofed' },
     { ...input, status: 'accepted' },
@@ -89,6 +90,8 @@ test('private proposal DTO validates IDs, task title and timestamp and rejects a
     decidedAt: null,
   };
   assert.deepEqual(validateProposalList([dto]), [validateProposal(dto)]);
+  assert.equal(validateProposal(dto).counterpartId, undefined);
+  assert.equal(validateProposal({ ...dto, counterpartId: dto.id }).counterpartId, dto.id);
   for (const value of [
     { ...dto, id: '1' },
     { ...dto, taskTitle: '' },
@@ -97,6 +100,8 @@ test('private proposal DTO validates IDs, task title and timestamp and rejects a
     { ...dto, createdAt: '2026-99-99T10:00:00Z' },
     { ...dto, student_id: dto.id },
     { ...dto, email: 'private@example.com' },
+    { ...dto, counterpartId: 'spoofed' },
+    { ...dto, counterpartId: null },
   ])
     assert.throws(() => validateProposal(value));
   assert.throws(() => validateProposalList({ data: [dto] }));

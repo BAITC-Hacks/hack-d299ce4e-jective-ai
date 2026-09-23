@@ -137,3 +137,17 @@ test('business navigation exposes proposals and student catalog remains independ
   assert.match(html, /detail\?id=99/);
   assert.doesNotMatch(html, /Исследовать сезонные изменения/);
 });
+
+test('student dashboard counts persisted accepted decisions and ignores incompatible legacy proposal state', () => {
+  const state = stateWith([
+    sampleProposal({ status: 'accepted', decidedAt: '2026-09-24T10:00:00Z' }),
+  ]);
+  state.catalog = { status: 'ready', items: [], error: '' };
+  state.proposalsData = { status: 'ready', items: Array(5).fill({ status: 'selected' }) };
+  const html = student(state);
+  assert.match(html, /<strong>1<\/strong><span>Отправлено предложений/);
+  assert.match(html, /<strong>0<\/strong><span>На рассмотрении/);
+  assert.match(html, /<strong>1<\/strong><span>Принято откликов/);
+  state.proposals.status = 'loading';
+  assert.match(student(state), /<strong>—<\/strong><span>Отправлено предложений/);
+});

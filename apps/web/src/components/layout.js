@@ -14,7 +14,6 @@ export function navItems(role) {
         ['student', 'Обзор', 'grid'],
         ['catalog', 'Каталог задач', 'search'],
         ['my-proposals', 'Мои отклики', 'list'],
-        ['team', 'Моя команда', 'users'],
       ];
 }
 export function layout(content, page, role = 'business', auth = null) {
@@ -34,7 +33,10 @@ export function layout(content, page, role = 'business', auth = null) {
   const items = navItems(role);
   // Keep profile/logout reachable on phones, where the sidebar is hidden.
   // Creating a task is still available from the dashboard and task list.
-  const mobileItems = items.filter(([route]) => route !== 'create');
+  const mobileItems = [
+    ...items.filter(([route]) => route !== 'create'),
+    ['profile', 'Профиль', 'users'],
+  ];
   return /* HTML */ `<div class="shell">
     <aside class="sidebar">
       ${brand()}
@@ -57,20 +59,6 @@ export function layout(content, page, role = 'business', auth = null) {
     <main class="main">
       <header class="main-head">
         <span class="crumb">Рабочее пространство / <strong>${pageTitle(page)}</strong></span>
-        <div class="row">
-          <div class="header-account">
-            <strong>${esc(fullName)}</strong><small>${roleLabel}</small>
-          </div>
-          <button
-            class="user-dot"
-            data-route="profile"
-            title="${esc(fullName)}"
-            aria-label="Открыть мой профиль"
-          >
-            ${esc(initials)}
-          </button>
-          ${signedIn ? `<button class="text-btn header-logout" data-action="logout" ${auth.busy ? 'disabled' : ''}>Выйти</button>` : '<button class="text-btn" data-route="login">Войти</button>'}
-        </div>
       </header>
       <div class="content">${content}</div>
     </main>
@@ -90,6 +78,8 @@ export function layout(content, page, role = 'business', auth = null) {
 export function pageTitle(r) {
   return (
     {
+      login: 'Вход',
+      register: 'Регистрация',
       dashboard: 'Обзор',
       'my-tasks': 'Мои задачи',
       create: 'Создать задачу',

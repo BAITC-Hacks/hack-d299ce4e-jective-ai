@@ -65,10 +65,15 @@ export function createProfilesService(supabase) {
   }
   async function withAvatar(profile) {
     if (!profile?.avatar_path) return profile;
-    const result = await client()
-      .storage.from('profile-avatars')
-      .createSignedUrl(profile.avatar_path, 3600);
-    return { ...profile, avatar_url: result.data?.signedUrl || '' };
+    try {
+      const result = await client()
+        .storage.from('profile-avatars')
+        .createSignedUrl(profile.avatar_path, 3600);
+      return { ...profile, avatar_url: result.data?.signedUrl || '' };
+    } catch {
+      // An unavailable optional photo must not hide a saved profile or directory.
+      return { ...profile, avatar_url: '' };
+    }
   }
   return {
     async get(id) {
@@ -116,10 +121,22 @@ export function createProfilesService(supabase) {
             .single(),
         );
       } catch (error) {
-        if (path) await storage.remove([path]);
+        if (path) {
+          try {
+            await storage.remove([path]);
+          } catch {
+            /* Preserve the metadata failure. */
+          }
+        }
         throw error;
       }
-      if (previousPath) await storage.remove([previousPath]);
+      if (previousPath) {
+        try {
+          await storage.remove([previousPath]);
+        } catch {
+          /* The new photo is already saved. */
+        }
+      }
       return withAvatar(profile);
     },
   };

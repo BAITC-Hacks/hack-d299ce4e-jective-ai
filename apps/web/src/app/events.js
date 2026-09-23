@@ -5,20 +5,17 @@ import { missingFeedback } from '../pages/task-editor.js';
 import { createTaskActions } from '../features/tasks/actions.js';
 import { createProposalActions } from '../features/proposals/actions.js';
 import { createAuthActions } from '../features/auth/actions.js';
-import { createTaskAnalysisService } from '../services/ai/taskAnalysis.js';
+import { createTranscriptionClient } from '../services/ai/transcription.js';
 
 /** One delegated event layer; feature modules own business actions. */
 export function bindEvents(context) {
-  const { store, router, feedback, attachments } = context;
+  const { store, router, feedback, attachments, workspace, publication } = context;
   const scoring = createScoringController(context);
   const tasks = createTaskActions({ ...context, scoring });
-  const analysis = createAnalysisController({
-    ...context,
-    scoring,
-    service: createTaskAnalysisService({ getAccessToken: context.getAccessToken }),
-  });
+  const analysis = createAnalysisController({ ...context, scoring });
   const voice = createVoiceController({
     ...context,
+    service: createTranscriptionClient({ getAccessToken: context.getAccessToken }),
     appendText(target, text) {
       const state = store.getState();
       const questionId = target.startsWith('answer:') ? target.slice(7) : null;
@@ -62,8 +59,6 @@ export function bindEvents(context) {
       }
     },
     ...createProposalActions(context),
-    ...context.proposals?.actions,
-    ...(context.proposals ? { 'confirm-publish': () => context.proposals.publish() } : {}),
     forgot: auth.forgot,
     logout: auth.logout,
     'force-logout': auth.forceLogout,
@@ -86,16 +81,27 @@ export function bindEvents(context) {
     if (document.visibilityState === 'hidden') void workspace.flush();
   });
 
-  function dispatch(name, element) {
-    const publicActions = ['forgot', 'close', 'logout', 'retry-auth', 'retry-catalog'];
+  function dispatch(name, element, values) {
+    const publicActions = [
+      'forgot',
+      'close',
+      'logout',
+      'force-logout',
+      'retry-auth',
+      'retry-catalog',
+    ];
     if (
-      Object.hasOwn(actions, name) &&
+      (Object.hasOwn(actions, name) || name === 'edit-task') &&
       !publicActions.includes(name) &&
       store.getState().auth.status !== 'authenticated'
     ) {
       router.navigate('login');
       return;
     }
+    if (name === 'edit-task') return publication.edit(element.dataset.taskId);
+    if (['accept-proposal', 'reject-proposal'].includes(name))
+      return actions[name](element.dataset.proposalId);
+    if (name === 'offer-success') return actions[name](values);
     if (Object.hasOwn(actions, name)) actions[name](element);
     else router.navigate(name);
   }
@@ -105,6 +111,7 @@ export function bindEvents(context) {
       '[data-action],[data-route],[data-role],[data-edit],[data-close],[data-scroll]',
     );
     if (!element) return;
+    if (element.disabled || element.getAttribute?.('aria-disabled') === 'true') return;
     const { action, route, role, edit, close, scroll } = element.dataset;
     if ((action && !action.startsWith('voice-')) || route || edit) voice.cancel(false);
     if (close && event.target === element) return feedback.closeModal();
@@ -144,8 +151,7 @@ export function bindEvents(context) {
       void auth.submit(event.target);
     } else if (event.target.id === 'offer-form') {
       event.preventDefault();
-      if (context.proposals) void context.proposals.submit(event.target);
-      else dispatch('offer-success');
+      dispatch('offer-success', undefined, Object.fromEntries(new FormData(event.target)));
     }
   });
 

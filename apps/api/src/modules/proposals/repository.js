@@ -48,7 +48,7 @@ function writeColumns(input) {
   };
 }
 
-function toProposal(row, taskTitle) {
+function toProposal(row, taskTitle, counterpartId) {
   const dto = {
     id: row.id,
     taskId: row.task_id,
@@ -61,6 +61,7 @@ function toProposal(row, taskTitle) {
     createdAt: row.created_at,
     status: row.status,
     decidedAt: row.decided_at,
+    ...(counterpartId === undefined ? {} : { counterpartId }),
   };
   try {
     return validateProposal(dto);
@@ -141,7 +142,11 @@ export function createSupabaseProposalRepository({
         }
         return rows.map((row) => {
           if (!titles.has(row.task_id)) throw databaseError();
-          return toProposal(row, titles.get(row.task_id));
+          return toProposal(
+            row,
+            titles.get(row.task_id),
+            role === 'business' ? row.student_id : undefined,
+          );
         });
       });
     },
@@ -219,7 +224,7 @@ export function createSupabaseProposalRepository({
             .maybeSingle();
           if (taskError) throw databaseError(taskError);
           if (!task || task.id !== row.task_id || task.owner_id !== userId) throw notFound();
-          return { row, dto: toProposal(row, task.title) };
+          return { row, dto: toProposal(row, task.title, row.student_id) };
         };
         const current = await readOwn();
         // A timed-out successful request may be safely retried using its old expectation.
@@ -242,7 +247,7 @@ export function createSupabaseProposalRepository({
             data.status !== input.status
           )
             throw databaseError();
-          return toProposal(data, current.dto.taskTitle);
+          return toProposal(data, current.dto.taskTitle, data.student_id);
         }
         // Compare-and-set lost a race; never blindly overwrite the newer decision.
         const latest = await readOwn();

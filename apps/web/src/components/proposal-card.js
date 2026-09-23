@@ -50,6 +50,11 @@ export function proposalCard(proposal, { canDecide = false, decision = null } = 
     Number.isSafeInteger(proposal.taskId) && proposal.taskId > 0
       ? `<a class="text-btn" href="#/detail?id=${proposal.taskId}">${esc(proposal.taskTitle)}</a>`
       : esc(proposal.taskTitle);
+  const profile =
+    typeof proposal.counterpartId === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(proposal.counterpartId)
+      ? `<a class="btn ghost small" href="#/profile?user=${encodeURIComponent(proposal.counterpartId)}">${canDecide ? 'Профиль студента' : 'Профиль участника'}</a>`
+      : '';
   return /* HTML */ `<article
     class="card proposal-card"
     data-proposal-id="${esc(proposal.id)}"
@@ -74,7 +79,7 @@ export function proposalCard(proposal, { canDecide = false, decision = null } = 
       <h3>Срок выполнения</h3>
       <p style="white-space:pre-wrap">${esc(proposal.deadline)}</p>
     </section>
-    <div class="actions">${prototypeLink(proposal.prototypeUrl)}</div>
+    <div class="actions">${prototypeLink(proposal.prototypeUrl)}${profile}</div>
     ${canDecide ? decisionControls(proposal, decision) : ''}
   </article>`;
 }

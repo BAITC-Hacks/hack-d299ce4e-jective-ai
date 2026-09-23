@@ -30,6 +30,9 @@ export function workspaceSnapshot(state) {
       analysisResult: flow.analysisResult,
       knownInformation: flow.knownInformation,
       missingInformation: flow.missingInformation,
+      ...(flow.attachmentSources?.length
+        ? { attachmentSources: flow.attachmentSources.map(({ id, name }) => ({ id, name })) }
+        : {}),
     },
     card:
       state.acceptedAnalysis || Object.values(taskCard(state)).some(Boolean)
@@ -40,6 +43,18 @@ export function workspaceSnapshot(state) {
     taskId: state.taskSave.task?.id ?? null,
     score: state.rating,
     scoringResult: state.aiScoring?.status === 'ready' ? state.aiScoring.result : null,
+    ...(state.attachmentDraftId
+      ? {
+          attachments: {
+            draftId: state.attachmentDraftId,
+            selectedIds:
+              state.attachmentSelectedIds ??
+              (state.attachments?.items || [])
+                .filter((item) => item.selected)
+                .map((item) => item.id),
+          },
+        }
+      : {}),
   };
 }
 
@@ -153,6 +168,12 @@ export function createWorkspaceController({ store, repository, render, delayMs =
               ...state,
               description: snapshot.description,
               taskAnalysis: { ...initialAnalysis(), ...snapshot.analysis },
+              attachmentDraftId: snapshot.attachments?.draftId || null,
+              attachmentSelectedIds: snapshot.attachments?.selectedIds,
+              acceptedAttachmentIds: snapshot.card
+                ? (snapshot.analysis.attachmentSources || []).map((item) => item.id)
+                : [],
+              attachments: { status: 'idle', items: [], error: '' },
               acceptedAnalysis: snapshot.card ? withMissingInformation(snapshot.card) : null,
               fields: Object.fromEntries(
                 Object.entries(fieldLabels).map(([key, label]) => [
@@ -196,6 +217,10 @@ export function createWorkspaceController({ store, repository, render, delayMs =
         ...state,
         description: '',
         taskAnalysis: initialAnalysis(),
+        attachmentDraftId: crypto.randomUUID(),
+        attachmentSelectedIds: [],
+        acceptedAttachmentIds: [],
+        attachments: { status: 'idle', items: [], error: '' },
         acceptedAnalysis: null,
         fields: blank.fields,
         taskSave: blank.taskSave,

@@ -429,3 +429,39 @@ test('same-account token refresh does not lose a pending list or leave a success
   assert.deepEqual(second.store.getState().proposals.items, [proposal()]);
   assert.equal(second.calls.feedback.filter((call) => call.method === 'success').length, 1);
 });
+
+test('route render reentrancy shares an in-flight list and failed loads wait for explicit retry', async (t) => {
+  const initial = createInitialState();
+  initial.auth = auth();
+  const store = createStore(initial);
+  let controller;
+  let reads = 0;
+  let renders = 0;
+  controller = createProposalsController({
+    store,
+    repository: {
+      async list() {
+        reads++;
+        if (reads === 1) throw new Error('Offline');
+        return [proposal()];
+      },
+    },
+    router: {
+      render() {
+        renders++;
+        assert.ok(renders < 10, 'render/load must not recurse');
+        void controller.load();
+      },
+    },
+    feedback: {},
+  });
+  t.after(() => controller.dispose());
+  await controller.load();
+  assert.equal(reads, 1);
+  assert.equal(store.getState().proposals.status, 'error');
+  await controller.load();
+  assert.equal(reads, 1);
+  await controller.load({ force: true });
+  assert.equal(reads, 2);
+  assert.equal(store.getState().proposals.status, 'ready');
+});

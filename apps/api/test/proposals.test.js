@@ -234,9 +234,10 @@ test('student proposal roundtrips every form field through database to student a
   assert.equal(saved.json.data.decidedAt, null);
   assert.equal(saved.json.data.student_id, undefined);
   assert.equal(saved.json.data.owner_id, undefined);
+  assert.equal(saved.json.data.counterpartId, undefined);
   assert.deepEqual((await request(db.app)).json.data, [saved.json.data]);
   assert.deepEqual((await request(db.app, { token: 'business.a.token' })).json.data, [
-    saved.json.data,
+    { ...saved.json.data, counterpartId: studentA },
   ]);
   assert.deepEqual((await request(db.app, { token: 'student.b.token' })).json.data, []);
   assert.deepEqual((await request(db.app, { token: 'business.b.token' })).json.data, []);
@@ -431,7 +432,10 @@ test('own business decision persists server timestamp and reaches student, witho
   assert.equal(accepted.status, 200);
   assert.equal(accepted.json.data.status, 'accepted');
   assert.equal(accepted.json.data.decidedAt, '2026-09-23T11:00:01.000Z');
-  assert.deepEqual((await request(db.app)).json.data, [accepted.json.data]);
+  assert.equal(accepted.json.data.counterpartId, studentA);
+  const studentDecision = { ...accepted.json.data };
+  delete studentDecision.counterpartId;
+  assert.deepEqual((await request(db.app)).json.data, [studentDecision]);
   assert.equal(
     (await request(db.app, { token: 'student.b.token' })).json.data[0].status,
     'pending',
@@ -461,7 +465,8 @@ test('decision retries are idempotent and changing an earlier decision requires 
   assert.deepEqual(retry.json.data, first.json.data);
   assert.equal(db.calls.filter((call) => call.action === 'update').length, 1);
   const studentRetry = await request(db.app, { method: 'POST', body: input() });
-  assert.deepEqual(studentRetry.json.data, first.json.data);
+  assert.equal(studentRetry.json.data.counterpartId, undefined);
+  assert.deepEqual({ ...studentRetry.json.data, counterpartId: studentA }, first.json.data);
   assert.equal(db.tables.proposals[0].status, 'accepted');
   const stale = await decide(db, proposal.id, { status: 'rejected', expectedStatus: 'pending' });
   assert.equal(stale.status, 409);

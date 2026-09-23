@@ -81,6 +81,29 @@ function savedSnapshot() {
   };
 }
 
+test('attachment source IDs and exclusions restore from the private workspace and new drafts isolate files', async (t) => {
+  const snapshot = savedSnapshot();
+  snapshot.attachments = { draftId: requestId, selectedIds: [] };
+  snapshot.analysis.attachmentSources = [{ id: owner, name: 'Факты.txt' }];
+  const { controller, store, writes } = setup(t, { loadWorkspace: async () => snapshot });
+  await controller.load();
+  assert.equal(store.getState().attachmentDraftId, requestId);
+  assert.deepEqual(store.getState().attachmentSelectedIds, []);
+  assert.deepEqual(
+    store.getState().taskAnalysis.attachmentSources,
+    snapshot.analysis.attachmentSources,
+  );
+  assert.deepEqual(workspaceSnapshot(store.getState()).attachments, snapshot.attachments);
+  assert.deepEqual(writes, []);
+  controller.newDraft();
+  assert.notEqual(store.getState().attachmentDraftId, requestId);
+  assert.deepEqual(store.getState().attachments.items, []);
+  assert.deepEqual(store.getState().acceptedAttachmentIds, []);
+  assert.equal(store.getState().taskAnalysis.attachmentSources, undefined);
+  assert.equal(await controller.flush(), true);
+  assert.deepEqual(writes.at(-1).snapshot.attachments.selectedIds, []);
+});
+
 test('empty workspace loads once without writing an empty document or public state', async (t) => {
   let reads = 0;
   const { controller, store, writes } = setup(t, {

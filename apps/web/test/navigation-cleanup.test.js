@@ -38,7 +38,7 @@ for (const role of ['business', 'student']) {
     );
     assert.equal(
       items.some(([route]) => route === 'profile'),
-      true,
+      false,
     );
     const html = layout('<p>Контент страницы</p>', 'catalog', role, signedIn(role).auth);
     const sidebar = section(html, /<aside class="sidebar">([\s\S]*?)<\/aside>/, 'sidebar');

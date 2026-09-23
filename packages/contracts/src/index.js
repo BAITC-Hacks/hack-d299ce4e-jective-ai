@@ -229,6 +229,7 @@ export function validateTaskWorkspace(value) {
       'taskId',
       'score',
       'scoringResult',
+      'attachments',
     ],
     'workspace',
   );
@@ -245,6 +246,7 @@ export function validateTaskWorkspace(value) {
       'analysisResult',
       'knownInformation',
       'missingInformation',
+      'attachmentSources',
     ],
     'analysis',
   );
@@ -297,6 +299,36 @@ export function validateTaskWorkspace(value) {
     (!Number.isInteger(value.score) || value.score < 0 || value.score > 100)
   )
     throw new TypeError('Некорректная оценка.');
+  let attachments;
+  if (value.attachments !== undefined) {
+    strictObject(value.attachments, ['draftId', 'selectedIds'], 'attachments');
+    const { draftId, selectedIds } = value.attachments;
+    if (
+      (draftId !== null && !isUuid(draftId)) ||
+      !Array.isArray(selectedIds) ||
+      selectedIds.length > 5 ||
+      selectedIds.some((id) => !isUuid(id)) ||
+      new Set(selectedIds).size !== selectedIds.length
+    )
+      throw new TypeError('Некорректные вложения черновика.');
+    attachments = { draftId, selectedIds: [...selectedIds] };
+  }
+  let attachmentSources;
+  if (flow.attachmentSources !== undefined) {
+    if (!Array.isArray(flow.attachmentSources) || flow.attachmentSources.length > 5)
+      throw new TypeError('Некорректные источники анализа.');
+    const sourceIds = new Set();
+    attachmentSources = flow.attachmentSources.map((source) => {
+      strictObject(source, ['id', 'name'], 'attachmentSource');
+      if (!isUuid(source.id) || sourceIds.has(source.id))
+        throw new TypeError('Некорректный идентификатор источника анализа.');
+      sourceIds.add(source.id);
+      return {
+        id: source.id,
+        name: taskText(source.name, 'attachmentSource.name', 200, { required: true }),
+      };
+    });
+  }
   return {
     version: 1,
     description: taskText(value.description, 'description', 10_000),
@@ -309,6 +341,7 @@ export function validateTaskWorkspace(value) {
       analysisResult: workspaceCard(flow.analysisResult, true),
       knownInformation: textList(flow.knownInformation, 'knownInformation'),
       missingInformation: fieldList(flow.missingInformation),
+      ...(attachmentSources === undefined ? {} : { attachmentSources }),
     },
     card: workspaceCard(value.card),
     metadata: {
@@ -320,6 +353,7 @@ export function validateTaskWorkspace(value) {
     taskId: value.taskId,
     score: value.score,
     scoringResult: workspaceScoring(value.scoringResult),
+    ...(attachments === undefined ? {} : { attachments }),
   };
 }
 

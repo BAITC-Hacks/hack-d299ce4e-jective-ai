@@ -51,14 +51,13 @@ export function createTaskAnalysisService({
   }),
 } = {}) {
   async function run(operation, payload, validate) {
-    const token = payload.attachmentIds?.length ? await getAccessToken?.() : null;
-    if (payload.attachmentIds?.length && !token)
-      throw new Error('Войдите снова, чтобы использовать прикреплённые файлы.');
+    const token = await getAccessToken?.();
+    if (!token) throw new Error('Войдите в аккаунт бизнеса, чтобы использовать AI-анализ.');
     const value = await client.request(`ai/task-analysis/${operation}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(payload),
     });

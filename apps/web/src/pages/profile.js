@@ -46,7 +46,7 @@ export function profilePage(state) {
   const profile = data.profile;
   const own = profile?.id === state.auth.user?.id;
   const status = `${data.error ? `<p class="profile-message" role="alert">${esc(data.error)} ${data.status === 'error' ? '<button class="text-btn" data-action="profile-retry">Повторить</button>' : ''}</p>` : ''}${data.notice ? `<p class="profile-message" role="status">${esc(data.notice)}</p>` : ''}`;
-  let content = `<div class="profile-toolbar"><h1 class="page-title">${own ? 'Мой профиль' : 'Профиль участника'}</h1><a class="btn ghost" href="#/members">Все участники</a></div>${status}`;
+  let content = `<div class="profile-toolbar"><h1 class="page-title">${own ? 'Мой профиль' : 'Профиль участника'}</h1><div class="actions"><a class="btn ghost" href="#/members">Все участники</a>${own ? `<button class="btn ghost" data-action="logout" ${state.auth.busy ? 'disabled' : ''}>Выйти</button>` : ''}</div></div>${status}`;
   if (data.status === 'loading' || !data.status)
     content += '<p role="status">Загружаем профиль…</p>';
   else if (profile) {

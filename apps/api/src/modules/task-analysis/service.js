@@ -172,11 +172,7 @@ export function createTaskAnalysisService({
         throw new HttpError(404, 'NOT_FOUND', 'Route not found.');
       validateInput(operation, input);
       if (!apiKey?.trim())
-        throw new HttpError(
-          503,
-          'AI_NOT_CONFIGURED',
-          'ИИ временно недоступен. Попробуйте позже.',
-        );
+        throw new HttpError(503, 'AI_NOT_CONFIGURED', 'ИИ временно недоступен. Попробуйте позже.');
       const controller = new AbortController();
       const abort = () => controller.abort();
       if (signal?.aborted) abort();
@@ -237,22 +233,14 @@ export function createTaskAnalysisService({
               'ИИ отклонил ключ или доступ. Попробуйте позже.',
             );
           if (response.status === 429)
-            throw new HttpError(
-              429,
-              'AI_RATE_LIMIT',
-              'Достигнут лимит ИИ. Попробуйте позже.',
-            );
+            throw new HttpError(429, 'AI_RATE_LIMIT', 'Достигнут лимит ИИ. Попробуйте позже.');
           if (response.status === 400 || response.status === 404)
             throw new HttpError(
               502,
               'AI_CONFIGURATION_ERROR',
               'ИИ отклонил запрос. Попробуйте позже.',
             );
-          throw new HttpError(
-            502,
-            'AI_UNAVAILABLE',
-            'ИИ временно недоступен. Повторите попытку.',
-          );
+          throw new HttpError(502, 'AI_UNAVAILABLE', 'ИИ временно недоступен. Повторите попытку.');
         }
         const payload = await response.json();
         const content = (Array.isArray(payload.output) ? payload.output : [])
@@ -272,18 +260,10 @@ export function createTaskAnalysisService({
         return validateOutput(operation, JSON.parse(raw));
       } catch (error) {
         if (controller.signal.aborted)
-          throw new HttpError(
-            504,
-            'AI_TIMEOUT',
-            'Превышено время ожидания ИИ. Повторите попытку.',
-          );
+          throw new HttpError(504, 'AI_TIMEOUT', 'Превышено время ожидания ИИ. Повторите попытку.');
         if (error instanceof HttpError) throw error;
         if (error instanceof SyntaxError) throw invalidOutput();
-        throw new HttpError(
-          502,
-          'AI_UNAVAILABLE',
-          'Не удалось связаться с ИИ. Повторите попытку.',
-        );
+        throw new HttpError(502, 'AI_UNAVAILABLE', 'Не удалось связаться с ИИ. Повторите попытку.');
       } finally {
         clearTimeout(timer);
         signal?.removeEventListener('abort', abort);

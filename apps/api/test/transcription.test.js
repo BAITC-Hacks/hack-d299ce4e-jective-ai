@@ -3,10 +3,17 @@ import test from 'node:test';
 import { Readable } from 'node:stream';
 import { EventEmitter } from 'node:events';
 import { createApp } from '../src/app.js';
+import { HttpError } from '../src/shared/http-error.js';
 import {
   createTranscriptionService,
   MAX_AUDIO_BYTES,
 } from '../src/modules/task-analysis/transcription.js';
+
+const authService = {
+  async getCurrentUser() {
+    return { profile: { role: 'business' } };
+  },
+};
 
 async function request(app, body, type = 'audio/webm;codecs=opus', method = 'POST') {
   const req = Object.assign(Readable.from([body]), {
@@ -37,7 +44,7 @@ test('audio endpoint sends a multipart file to OpenAI and returns text without t
     },
   });
   const response = await request(
-    createApp({ transcriptionService: service }),
+    createApp({ transcriptionService: service, authService }),
     Buffer.from('audio'),
   );
   assert.equal(response.status, 200);
@@ -48,6 +55,7 @@ test('audio endpoint sends a multipart file to OpenAI and returns text without t
 test('invalid uploads never call OpenAI', async () => {
   let calls = 0;
   const app = createApp({
+    authService,
     transcriptionService: createTranscriptionService({
       apiKey: 'test',
       fetchImpl: async () => {
@@ -62,6 +70,42 @@ test('invalid uploads never call OpenAI', async () => {
     [Buffer.from('x'), 'audio/webm', 'GET', 405],
   ]) {
     assert.equal((await request(app, body, type, method)).status, status);
+  }
+  assert.equal(calls, 0);
+});
+
+test('transcription requires a verified business account before reading audio or invoking a provider', async () => {
+  let calls = 0;
+  for (const [authService, status] of [
+    [
+      {
+        async getCurrentUser() {
+          throw new HttpError(401, 'UNAUTHORIZED', 'Войдите.');
+        },
+      },
+      401,
+    ],
+    [
+      {
+        async getCurrentUser() {
+          return { profile: { role: 'student' } };
+        },
+      },
+      403,
+    ],
+  ]) {
+    const app = createApp({
+      authService,
+      transcriptionService: {
+        async transcribe() {
+          calls++;
+        },
+      },
+    });
+    assert.equal((await request(app, Buffer.from('audio'))).status, status);
+    const unsupported = await request(app, Buffer.from('audio'), 'audio/webm', 'GET');
+    assert.equal(unsupported.status, 405);
+    assert.equal(unsupported.headers.Allow, 'POST');
   }
   assert.equal(calls, 0);
 });

@@ -29,6 +29,7 @@ const result = {
 };
 const calls = [];
 const service = createTaskAnalysisService({
+  getAccessToken: async () => 'token',
   client: {
     async request(path, options) {
       calls.push({ path, body: JSON.parse(options.body) });
@@ -57,6 +58,7 @@ test('invalid descriptions, questions and final responses fail explicitly', asyn
   for (const value of [null, {}, { questions: [] }]) assert.throws(() => validateQuestions(value));
   for (const value of [null, {}, { title: 'Partial' }]) assert.throws(() => validateResult(value));
   const api = createTaskAnalysisService({
+    getAccessToken: async () => 'token',
     client: { request: async () => ({ questions: [] }) },
   });
   await assert.rejects(api.analyzeTaskDescription(description));
@@ -134,4 +136,83 @@ test('AI failures preserve input and retry the failed operation', async () => {
   await controller.actions['analysis-retry']();
   assert.equal(store.getState().taskAnalysis.answers.data, 'Исходные данные');
   assert.match(create(store.getState()), /Не удалось выполнить AI-анализ/);
+});
+
+test('AI text analysis always authenticates, including without attachments', async () => {
+  let calls = 0;
+  const api = createTaskAnalysisService({
+    getAccessToken: async () => 'fresh-token',
+    client: {
+      request: async (_path, options) => {
+        calls++;
+        assert.equal(options.headers.Authorization, 'Bearer fresh-token');
+        return { questions, knownInformation: [], missingInformation: [] };
+      },
+    },
+  });
+  await api.analyzeTaskDescription(description);
+  assert.equal(calls, 1);
+  await assert.rejects(
+    createTaskAnalysisService({
+      client: {
+        request() {
+          calls++;
+        },
+      },
+    }).analyzeTaskDescription(description),
+    /Войдите/,
+  );
+  assert.equal(calls, 1);
+});
+
+test('late AI completion cannot overwrite a newer workspace for the same user', async () => {
+  let resolve;
+  let generation = 0;
+  const store = createStore({ ...createInitialState(), description });
+  const controller = createAnalysisController({
+    store,
+    router: { render() {} },
+    workspace: {
+      scope: () => generation,
+      isCurrent: (scope) => scope === generation,
+      flush: async () => true,
+    },
+    service: {
+      analyzeTaskDescription: () =>
+        new Promise((accept) => {
+          resolve = accept;
+        }),
+    },
+  });
+  const request = controller.actions.analyze();
+  await Promise.resolve();
+  generation++;
+  store.update((s) => ({ ...s, taskAnalysis: undefined, description: 'Новая задача' }));
+  resolve({ questions, knownInformation: [], missingInformation: [] });
+  await request;
+  assert.equal(store.getState().taskAnalysis, undefined);
+  assert.equal(store.getState().description, 'Новая задача');
+});
+
+test('double next while saving does not skip an unanswered question', async () => {
+  const pending = [];
+  const store = createStore({
+    ...createInitialState(),
+    taskAnalysis: { step: 'questions', questions, currentQuestion: 0 },
+  });
+  const controller = createAnalysisController({
+    store,
+    router: { render() {} },
+    workspace: {
+      scope: () => 1,
+      isCurrent: () => true,
+      flush: () => new Promise((resolve) => pending.push(resolve)),
+    },
+  });
+  const first = controller.actions['analysis-next']();
+  const second = controller.actions['analysis-next']();
+  pending[0](true);
+  pending[1](true);
+  await Promise.all([first, second]);
+  assert.equal(store.getState().taskAnalysis.currentQuestion, 1);
 });

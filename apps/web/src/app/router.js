@@ -30,7 +30,6 @@ const routes = {
   student: pages.student,
   'my-proposals': pages.myProposals,
   proposals: pages.proposals,
-  team: (state) => pages.simple(state, 'team'),
   profile: profilePage,
   members: membersPage,
 };

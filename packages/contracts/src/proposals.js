@@ -81,12 +81,26 @@ export function validateProposalWrite(value) {
 
 /** Private response DTO: available only to the submitting student and task owner. */
 export function validateProposal(value) {
-  object(value, [...writeFields, 'id', 'taskTitle', 'createdAt', 'status', 'decidedAt']);
+  object(value, [
+    ...writeFields,
+    'id',
+    'taskTitle',
+    'createdAt',
+    'status',
+    'decidedAt',
+    'counterpartId',
+  ]);
   if (typeof value.id !== 'string' || !uuid.test(value.id)) {
     throw new TypeError('Некорректный идентификатор отклика.');
   }
   if (!isTimestamp(value.createdAt)) {
     throw new TypeError('Некорректная дата отклика.');
+  }
+  if (
+    value.counterpartId !== undefined &&
+    (typeof value.counterpartId !== 'string' || !uuid.test(value.counterpartId))
+  ) {
+    throw new TypeError('Некорректный идентификатор участника отклика.');
   }
   if (
     !statuses.includes(value.status) ||
@@ -101,6 +115,7 @@ export function validateProposal(value) {
     createdAt: value.createdAt,
     status: value.status,
     decidedAt: value.decidedAt,
+    ...(value.counterpartId === undefined ? {} : { counterpartId: value.counterpartId }),
   };
 }
 

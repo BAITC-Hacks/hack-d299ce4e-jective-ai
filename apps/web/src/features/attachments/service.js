@@ -7,8 +7,8 @@ export function createAttachmentsClient({
     timeoutMs: 90000,
   }),
 }) {
-  async function request(path, options = {}) {
-    const token = await getAccessToken();
+  async function request(path, options = {}, { userId } = {}) {
+    const token = await getAccessToken(userId);
     if (!token) throw new Error('Войдите в аккаунт, чтобы работать с вложениями.');
     return client.request(`task-attachments${path}`, {
       ...options,
@@ -16,15 +16,20 @@ export function createAttachmentsClient({
     });
   }
   return {
-    list: (draftId) => request(`?draft=${encodeURIComponent(draftId)}`),
-    upload: (draftId, file) =>
-      request(`?draft=${encodeURIComponent(draftId)}&name=${encodeURIComponent(file.name)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/octet-stream' },
-        body: file,
-      }),
-    analyze: (id) => request(`/${encodeURIComponent(id)}/analyze`, { method: 'POST' }),
-    remove: (id) => request(`/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-    download: (id) => request(`/${encodeURIComponent(id)}/download`),
+    list: (draftId, scope) => request(`?draft=${encodeURIComponent(draftId)}`, {}, scope),
+    upload: (draftId, file, scope) =>
+      request(
+        `?draft=${encodeURIComponent(draftId)}&name=${encodeURIComponent(file.name)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/octet-stream' },
+          body: file,
+        },
+        scope,
+      ),
+    analyze: (id, scope) =>
+      request(`/${encodeURIComponent(id)}/analyze`, { method: 'POST' }, scope),
+    remove: (id, scope) => request(`/${encodeURIComponent(id)}`, { method: 'DELETE' }, scope),
+    download: (id, scope) => request(`/${encodeURIComponent(id)}/download`, {}, scope),
   };
 }

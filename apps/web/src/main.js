@@ -20,6 +20,10 @@ import { syncAuthForm } from './features/auth/actions.js';
 import { createProposalsRepository } from './features/proposals/repository.js';
 import { createProposalsController } from './features/proposals/controller.js';
 import { syncProposalForm } from './features/proposals/form.js';
+import { createProfilesController } from './features/profiles/controller.js';
+import { createProfilesService } from './features/profiles/service.js';
+import { createAttachmentsController } from './features/attachments/controller.js';
+import { createAttachmentsClient } from './features/attachments/service.js';
 
 const root = document.querySelector('#app');
 const config = readConfig();
@@ -39,7 +43,14 @@ const router = createRouter({
   motion,
   onRoute: () => {
     void profiles?.sync();
-    void proposals?.sync();
+    const state = store.getState();
+    if (['#/proposals', '#/my-proposals', '#/student'].includes(window.location.hash))
+      void proposals?.load();
+    if (
+      state.workspace.loaded &&
+      ['#/create', '#/clarify', '#/editor'].includes(window.location.hash)
+    )
+      void attachments.load();
   },
 });
 let supabase = null;
@@ -53,15 +64,26 @@ const authService = createAuthService({
   apiClient: createHttpClient({ baseUrl: config.apiBaseUrl }),
   redirectUrl: window.location.origin,
 });
-const getAccessToken = async () => (await authService.getSession())?.access_token;
+async function getAccessToken(expectedUserId) {
+  const session = await authService.getSession();
+  if (!session || (expectedUserId && session.user.id !== expectedUserId))
+    throw new Error('Сессия изменилась. Войдите в аккаунт и повторите попытку.');
+  return session.access_token;
+}
+const tasksRepository = createTasksRepository(config, undefined, { getAccessToken });
+const proposalsRepository = createProposalsRepository(config, undefined, { getAccessToken });
+const scopedAccessToken = (expectedUserId = store.getState().auth.user?.id) =>
+  getAccessToken(expectedUserId);
+const analysisService = createTaskAnalysisService({ getAccessToken: scopedAccessToken });
 profiles = createProfilesController({ store, router, service: createProfilesService(supabase) });
 const attachments = createAttachmentsController({
   store,
-  service: createAttachmentsClient({ getAccessToken }),
+  service: createAttachmentsClient({ getAccessToken: scopedAccessToken }),
   render: () => {
     if (['#/create', '#/clarify', '#/editor'].includes(window.location.hash)) router.render();
   },
 });
+let visibleUserId = null;
 const authController = createAuthController({
   store,
   service: authService,
@@ -72,6 +94,8 @@ const authController = createAuthController({
       workspace.reset();
       publication.reset();
       proposals.reset();
+      attachments.reset();
+      profiles.reset?.();
       visibleUserId = userId;
     }
     if (store.getState().auth.status !== 'authenticated' && syncAuthForm(store.getState().auth))
@@ -81,7 +105,14 @@ const authController = createAuthController({
       feedback.toast(store.getState().auth.error);
   },
   onAuthenticated: ({ profile }) => {
-    if (profile.role === 'business') void attachments.load();
+    void proposals.load();
+    if (profile.role === 'business') {
+      void workspace.load().then(() => {
+        void workspace.flush();
+        if (store.getState().workspace.loaded) void attachments.load();
+      });
+      void publication.loadMine();
+    }
     if (
       !window.location.hash ||
       ['#/', '#/home', '#/login', '#/register'].includes(window.location.hash)
@@ -98,12 +129,7 @@ const authController = createAuthController({
 });
 const catalog = createCatalogController({
   store,
-  repository: {
-    async list() {
-      if (!supabase) return createTasksRepository(config).list();
-      return createProposalsService(supabase).tasks();
-    },
-  },
+  repository: tasksRepository,
   render: () => {
     if (
       ['#/catalog', '#/detail', '#/dashboard', '#/my-tasks'].some((route) =>
@@ -113,23 +139,71 @@ const catalog = createCatalogController({
       router.render();
   },
 });
-proposals = createProposalsController({
+const workspace = createWorkspaceController({
   store,
+  repository: tasksRepository,
+  render: () => {
+    if (!['#/create', '#/clarify', '#/editor'].includes(window.location.hash)) return;
+    const state = store.getState();
+    const existing = root.querySelector('[data-workspace-feedback]');
+    if (state.workspace.loaded && existing && root.querySelector('.form-card, .editor-card')) {
+      existing.outerHTML = workspaceFeedback(state);
+      for (const button of root.querySelectorAll('[data-save-task]')) {
+        button.disabled = state.taskSave.status === 'saving' || state.workspace.status === 'error';
+      }
+      return;
+    }
+    const active = document.activeElement;
+    const id = root.contains(active) ? active.id : '';
+    const selection =
+      id && typeof active.selectionStart === 'number'
+        ? [active.selectionStart, active.selectionEnd]
+        : null;
+    router.render();
+    const next = id ? document.getElementById(id) : null;
+    next?.focus();
+    if (selection && next?.setSelectionRange) next.setSelectionRange(...selection);
+  },
+});
+const publication = createPublicationController({
+  store,
+  repository: tasksRepository,
+  catalog,
+  workspace,
   router,
   feedback,
-  service: createProposalsService(supabase),
-  reloadCatalog: () => catalog.load(),
 });
+proposals = createProposalsController({
+  store,
+  repository: proposalsRepository,
+  router: {
+    navigate: router.navigate,
+    render: () => {
+      if (['#/proposals', '#/my-proposals', '#/student'].includes(window.location.hash))
+        router.render();
+    },
+  },
+  feedback,
+  renderForm: syncProposalForm,
+});
+const refreshProposals = () => {
+  if (['#/proposals', '#/my-proposals', '#/student'].includes(window.location.hash))
+    void proposals.load({ force: true });
+};
+window.addEventListener('hashchange', refreshProposals);
 const unbind = bindEvents({
   store,
   router,
   feedback,
   catalog,
   authController,
+  publication,
+  workspace,
+  service: analysisService,
   attachments,
   profiles,
   proposals,
-  getAccessToken,
+  getAccessToken: scopedAccessToken,
 });
 
 router.start();
@@ -162,7 +236,6 @@ if (import.meta.hot) {
     catalog.dispose();
     attachments.dispose();
     profiles.dispose();
-    proposals.dispose();
     unbind();
     router.dispose();
     motion.dispose();

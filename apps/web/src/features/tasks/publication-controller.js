@@ -170,6 +170,11 @@ export function createPublicationController({
         ...state,
         description: task.originalDescription || '',
         taskAnalysis: { ...initialAnalysis(), ...task.analysisSnapshot?.analysis },
+        attachmentDraftId: task.analysisSnapshot?.attachments?.draftId || state.attachmentDraftId,
+        attachmentSelectedIds: task.analysisSnapshot?.attachments?.selectedIds || [],
+        acceptedAttachmentIds: (task.analysisSnapshot?.analysis?.attachmentSources || []).map(
+          (item) => item.id,
+        ),
         fields: Object.fromEntries(
           Object.entries(fieldLabels).map(([key, label]) => [label, task.card?.[key] || '']),
         ),

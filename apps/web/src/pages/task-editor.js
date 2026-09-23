@@ -78,7 +78,7 @@ export function create(state) {
   const flow = state.taskAnalysis || initialAnalysis();
   const step = ['questions', 'generating'].includes(flow.step) ? 2 : flow.step === 'result' ? 3 : 1;
   return layout(
-    `<div class="narrow">${stepper(step)}<span class="eyebrow">Шаг ${step} из 4</span><h1 class="page-title">Опишите вашу бизнес-задачу</h1><p class="sub">Опишите проблему своими словами — AI поможет оформить её правильно.</p><p class="hint">ИИ анализирует описание и ответы. Проверьте результат перед публикацией.</p>${analysisContent(state, flow)}${flow.step !== 'description' ? attachmentSources(state) : ''}</div>`,
+    `<div class="narrow">${stepper(step)}<span class="eyebrow">Шаг ${step} из 4</span><h1 class="page-title">Опишите вашу бизнес-задачу</h1><p class="sub">Опишите проблему своими словами — AI поможет оформить её правильно.</p><p class="hint">ИИ анализирует описание и ответы. Проверьте результат перед публикацией.</p>${workspaceFeedback(state)}${analysisContent(state, flow)}${flow.step !== 'description' ? attachmentSources(state) : ''}</div>`,
     'create',
     'business',
     state.auth,
@@ -156,7 +156,7 @@ export function editor(state) {
       )
       .join(
         '',
-      )}</div>${rating(state)}</div>${attachmentSources(state)}<div class="editor-actions">${btn('Сохранить черновик', 'save-draft', 'ghost')}${btn('Опубликовать задачу ' + I('arrow', 16), 'publish')}</div>`,
+      )}</div>${rating(state)}</div>${attachmentSources(state)}${workspaceFeedback(state)}${saveFeedback}<div class="editor-actions">${btn(published ? 'Сохранить изменения' : 'Сохранить черновик', 'save-draft', 'ghost', `data-save-task ${saveDisabled ? 'disabled' : ''}`)}${published ? '' : btn('Опубликовать задачу ' + I('arrow', 16), 'publish', 'primary', `data-save-task ${saveDisabled ? 'disabled' : ''}`)}</div>`,
     'editor',
     'business',
     state.auth,

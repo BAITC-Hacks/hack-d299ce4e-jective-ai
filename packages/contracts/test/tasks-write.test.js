@@ -143,3 +143,47 @@ test('workspace DTO rejects arbitrary auth state, unexpected answers, nested fie
     assert.throws(() => validateTaskWorkspace(value), TypeError);
   }
 });
+
+test('workspace persists optional attachment selection and analysis sources without changing legacy snapshots', () => {
+  assert.deepEqual(validateTaskWorkspace(workspace()), workspace());
+  const value = workspace();
+  value.attachments = { draftId: requestId, selectedIds: [requestId] };
+  value.analysis.attachmentSources = [{ id: requestId, name: 'Исходные данные.csv' }];
+  const result = validateTaskWorkspace(value);
+  assert.deepEqual(result, value);
+  result.attachments.selectedIds.length = 0;
+  result.analysis.attachmentSources[0].name = 'Changed';
+  assert.equal(value.attachments.selectedIds.length, 1);
+  assert.equal(value.analysis.attachmentSources[0].name, 'Исходные данные.csv');
+  assert.deepEqual(
+    validateTaskWorkspace({ ...workspace(), attachments: { draftId: null, selectedIds: [] } })
+      .attachments,
+    { draftId: null, selectedIds: [] },
+  );
+});
+
+test('workspace attachment references reject unsafe fields, duplicates and invalid bounds', () => {
+  for (const attachments of [
+    null,
+    { draftId: 'bad', selectedIds: [] },
+    { draftId: null, selectedIds: ['bad'] },
+    { draftId: null, selectedIds: [requestId, requestId] },
+    { draftId: null, selectedIds: Array(6).fill(requestId) },
+    { draftId: null, selectedIds: [], accessToken: 'secret' },
+  ])
+    assert.throws(() => validateTaskWorkspace({ ...workspace(), attachments }));
+  const source = { id: requestId, name: 'Данные.txt' };
+  for (const attachmentSources of [
+    null,
+    [source, source],
+    Array(6).fill(source),
+    [{ ...source, id: 'bad' }],
+    [{ ...source, name: '' }],
+    [{ ...source, name: 'x'.repeat(201) }],
+    [{ ...source, storagePath: '/private/file' }],
+  ]) {
+    const value = workspace();
+    value.analysis.attachmentSources = attachmentSources;
+    assert.throws(() => validateTaskWorkspace(value));
+  }
+});

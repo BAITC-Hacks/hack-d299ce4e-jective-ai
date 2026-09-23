@@ -154,17 +154,68 @@ test('recording automatically stops at the duration limit', async () => {
 test('client uploads binary audio and validates transcription', async () => {
   const blob = new Blob(['audio'], { type: 'audio/webm;codecs=opus' });
   const client = createTranscriptionClient({
+    getAccessToken: async () => 'voice-token',
     client: {
       async request(path, options) {
         assert.equal(path, 'ai/task-analysis/transcribe');
         assert.equal(options.body, blob);
         assert.equal(options.headers['Content-Type'], blob.type);
+        assert.equal(options.headers.Authorization, 'Bearer voice-token');
         return { text: ' Текст ' };
       },
     },
   });
   assert.equal(await client.transcribe(blob), 'Текст');
   await assert.rejects(
-    createTranscriptionClient({ client: { request: async () => ({ text: '' }) } }).transcribe(blob),
+    createTranscriptionClient({
+      getAccessToken: async () => 'token',
+      client: { request: async () => ({ text: '' }) },
+    }).transcribe(blob),
   );
+});
+
+test('idle cancellation does not modify state or render', () => {
+  const s = setup();
+  const before = s.store.getState();
+  s.voice.cancel(false);
+  assert.equal(s.store.getState(), before);
+  s.voice.dispose();
+});
+
+test('account changes immediately cancel recognition and ignore a late transcript', async () => {
+  let finish, signal;
+  const s = setup({
+    service: {
+      transcribe: (_audio, provided) => {
+        signal = provided;
+        return new Promise((resolve) => {
+          finish = resolve;
+        });
+      },
+    },
+  });
+  s.store.update((state) => ({ ...state, auth: { user: { id: 'first' } } }));
+  await s.voice.start('description');
+  s.voice.stop();
+  await tick();
+  s.store.update((state) => ({ ...state, auth: { user: { id: 'second' } } }));
+  assert.equal(signal.aborted, true);
+  assert.equal(s.store.getState().voice.status, 'idle');
+  finish('Private transcript');
+  await tick();
+  assert.deepEqual(s.appended, []);
+  s.voice.dispose();
+});
+
+test('transcription without a session never uploads audio', async () => {
+  let uploads = 0;
+  const client = createTranscriptionClient({
+    client: {
+      request() {
+        uploads++;
+      },
+    },
+  });
+  await assert.rejects(client.transcribe(new Blob(['audio'])), /Войдите/);
+  assert.equal(uploads, 0);
 });

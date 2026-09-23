@@ -23,9 +23,11 @@ test('scoring sends current card, displays model feedback, and rejects invalid t
   const store = createStore(createInitialState());
   let payload;
   const service = createTaskAnalysisService({
+    getAccessToken: async () => 'token',
     client: {
       async request(path, options) {
         assert.equal(path, 'ai/task-analysis/score');
+        assert.equal(options.headers.Authorization, 'Bearer token');
         payload = JSON.parse(options.body);
         return result;
       },
@@ -41,6 +43,7 @@ test('scoring sends current card, displays model feedback, and rejects invalid t
   assert.match(editor(store.getState()), /&lt;script&gt;/);
   assert.ok(!editor(store.getState()).includes('<script>'));
   const invalid = createTaskAnalysisService({
+    getAccessToken: async () => 'token',
     client: { request: async () => ({ ...result, score: 100 }) },
   });
   await assert.rejects(invalid.scoreTask(payload.card));

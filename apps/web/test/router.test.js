@@ -65,6 +65,18 @@ test('hash routes preserve task IDs and the default entry points', () => {
   assert.deepEqual(parseRoute('#/detail?id=3'), { name: 'detail', taskId: 3 });
 });
 
+test('authentication routes have distinct document titles', (t) => {
+  const { router, location } = authRouter(t, { hash: '#/login' });
+  for (const [route, title] of [
+    ['login', 'Вход'],
+    ['register', 'Регистрация'],
+  ]) {
+    location.hash = `#/${route}`;
+    router.render();
+    assert.equal(globalThis.document.title, `${title} — AI Sana`);
+  }
+});
+
 test('router renders the selected task, falls back for unknown routes and cleans up listeners', (t) => {
   const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;

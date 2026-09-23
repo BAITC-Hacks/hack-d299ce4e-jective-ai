@@ -8,6 +8,10 @@ export function createProfilesController({ store, router, service, prepare = pre
   const patch = (values) =>
     store.update((s) => ({ ...s, profilePage: { ...s.profilePage, ...values } }));
   const render = () => router.render();
+  const authenticated = () => {
+    const auth = store.getState().auth;
+    return auth.status === 'authenticated' && auth.user?.id && auth.profile?.id === auth.user.id;
+  };
   function route() {
     const [path, query] = window.location.hash.split('?');
     const owner = store.getState().auth.user?.id;
@@ -15,11 +19,16 @@ export function createProfilesController({ store, router, service, prepare = pre
   }
   async function sync(force = false) {
     const { path, owner, id } = route();
+    if (disposed || !authenticated()) {
+      currentKey = '';
+      revision++;
+      return;
+    }
     const key = `${owner}:${path}:${id}`;
     if (!force && key === currentKey) return;
     currentKey = key;
     const request = ++revision;
-    if (disposed || !owner || !['#/profile', '#/members'].includes(path)) return;
+    if (!['#/profile', '#/members'].includes(path)) return;
     const previous = store.getState().profilePage;
     const directory = path === '#/members';
     patch({
@@ -63,13 +72,19 @@ export function createProfilesController({ store, router, service, prepare = pre
   async function mutate(operation, notice, closeEditor = false) {
     const state = store.getState();
     const owner = state.auth.user?.id;
-    if (!owner || state.profilePage?.profile?.id !== owner || state.profilePage.busy) return;
+    if (
+      disposed ||
+      !authenticated() ||
+      state.profilePage?.profile?.id !== owner ||
+      state.profilePage.busy
+    )
+      return;
     const request = revision;
     patch({ busy: true, error: '', notice: '' });
     render();
     try {
       const profile = await operation(owner, state.profilePage.profile);
-      if (disposed || request !== revision || route().owner !== owner) return;
+      if (!profile || disposed || request !== revision || route().owner !== owner) return;
       patch({ profile, notice, ...(closeEditor ? { editing: false, draft: null } : {}) });
       store.update((s) => ({
         ...s,
@@ -87,6 +102,22 @@ export function createProfilesController({ store, router, service, prepare = pre
   }
   return {
     sync,
+    reset() {
+      currentKey = '';
+      revision++;
+      patch({
+        status: 'idle',
+        profile: null,
+        members: [],
+        editing: false,
+        draft: null,
+        busy: false,
+        error: '',
+        notice: '',
+        query: '',
+        page: 0,
+      });
+    },
     capture,
     save(form) {
       capture(form);
@@ -95,10 +126,13 @@ export function createProfilesController({ store, router, service, prepare = pre
     },
     upload(file) {
       if (file)
-        return mutate(
-          async (id, profile) => service.avatar(id, await prepare(file), profile.avatar_path),
-          'Фото обновлено.',
-        );
+        return mutate(async (id, profile) => {
+          const request = revision;
+          const image = await prepare(file);
+          if (disposed || request !== revision || route().owner !== id || !authenticated())
+            return null;
+          return service.avatar(id, image, profile.avatar_path);
+        }, 'Фото обновлено.');
     },
     search(form) {
       patch({ query: new FormData(form).get('query') || '', page: 0 });
@@ -107,7 +141,8 @@ export function createProfilesController({ store, router, service, prepare = pre
     actions: {
       'profile-edit': () => {
         const data = store.getState().profilePage;
-        if (!data?.profile || data.busy) return;
+        if (disposed || !authenticated() || data?.profile?.id !== route().owner || data.busy)
+          return;
         patch({ editing: true, draft: data.draft || structuredClone(data.profile), notice: '' });
         render();
         document

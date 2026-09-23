@@ -6,11 +6,18 @@ export function createVoiceController({
   appendText,
   mediaDevices = globalThis.navigator?.mediaDevices,
   Recorder = globalThis.MediaRecorder,
-  service = createTranscriptionClient(),
+  getAccessToken,
+  service = createTranscriptionClient({ getAccessToken }),
+  workspace,
   maxDurationMs = 120000,
 }) {
   let session = 0;
   let recorder, stream, timer, request, audio;
+  let owner, workspaceScope;
+  const active = (id) =>
+    id === session &&
+    owner === store.getState().auth?.user?.id &&
+    (!workspace || workspace.isCurrent(workspaceScope));
   const current = () => store.getState().voice || { status: 'idle', target: '' };
   const show = (patch) => {
     store.update((state) => ({ ...state, voice: { ...current(), ...patch } }));
@@ -22,26 +29,31 @@ export function createVoiceController({
     stream = null;
   };
   function cancel(render = true) {
+    const changed = current().status !== 'idle' || Boolean(current().target);
     session++;
     request?.abort();
+    request = null;
     if (recorder && recorder.state !== 'inactive') recorder.stop();
     release();
     recorder = null;
     audio = null;
-    store.update((state) => ({ ...state, voice: { status: 'idle', target: '' } }));
-    if (render) router.render();
+    if (changed) {
+      store.update((state) => ({ ...state, voice: { status: 'idle', target: '' } }));
+      if (render) router.render();
+    }
   }
   async function transcribe(id, target) {
+    if (!active(id)) return;
     request = new AbortController();
     show({ status: 'transcribing', error: '' });
     try {
-      const text = await service.transcribe(audio, request.signal);
-      if (id !== session) return;
+      const text = await service.transcribe(audio, request.signal, { userId: owner });
+      if (!active(id)) return;
       appendText(target, text);
       audio = null;
       show({ status: 'done', error: '' });
     } catch (error) {
-      if (id === session)
+      if (active(id))
         show({
           status: 'error',
           error: error.message || 'Не удалось распознать речь.',
@@ -53,6 +65,8 @@ export function createVoiceController({
     if (['requesting', 'recording', 'transcribing'].includes(current().status)) return;
     cancel(false);
     const id = session;
+    owner = store.getState().auth?.user?.id;
+    workspaceScope = workspace?.scope();
     show({ target, status: 'requesting', error: '', canRetry: false });
     try {
       if (!mediaDevices?.getUserMedia || !Recorder)
@@ -60,7 +74,7 @@ export function createVoiceController({
           'Микрофон недоступен. Откройте сайт по HTTPS или localhost в браузере с поддержкой записи звука.',
         );
       const acquired = await mediaDevices.getUserMedia({ audio: true });
-      if (id !== session) {
+      if (!active(id)) {
         acquired.getTracks().forEach((track) => track.stop());
         return;
       }
@@ -79,7 +93,7 @@ export function createVoiceController({
       const chunks = [];
       let size = 0;
       recorder.ondataavailable = (event) => {
-        if (id !== session) return;
+        if (!active(id)) return;
         size += event.data.size;
         if (size > 10 * 1024 * 1024) {
           cancel(false);
@@ -94,7 +108,7 @@ export function createVoiceController({
         if (event.data.size) chunks.push(event.data);
       };
       recorder.onerror = () => {
-        if (id !== session) return;
+        if (!active(id)) return;
         cancel(false);
         show({
           target,
@@ -104,7 +118,7 @@ export function createVoiceController({
         });
       };
       recorder.onstop = () => {
-        if (id !== session) return;
+        if (!active(id)) return;
         release();
         audio = new Blob(chunks, { type: mimeType });
         if (!audio.size) {
@@ -118,7 +132,7 @@ export function createVoiceController({
       show({ status: 'recording' });
       timer = setTimeout(stop, maxDurationMs);
     } catch (error) {
-      if (id !== session) return;
+      if (!active(id)) return;
       release();
       const messages = {
         NotAllowedError:
@@ -136,6 +150,9 @@ export function createVoiceController({
       release();
     }
   }
+  const unsubscribe = store.subscribe?.(() => {
+    if (current().status !== 'idle' && !active(session)) cancel(false);
+  });
   return {
     start,
     stop,
@@ -143,6 +160,9 @@ export function createVoiceController({
     retry: () => {
       if (audio && current().status === 'error') return transcribe(session, current().target);
     },
-    dispose: () => cancel(false),
+    dispose() {
+      unsubscribe?.();
+      cancel(false);
+    },
   };
 }

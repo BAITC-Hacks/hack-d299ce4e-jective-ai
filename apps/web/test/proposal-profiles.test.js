@@ -6,6 +6,7 @@ import { createProposalsService } from '../src/features/proposals/service.js';
 import { createProposalsController } from '../src/features/proposals/controller.js';
 import { createStore } from '../src/app/store.js';
 import { createInitialState } from '../src/app/initial-state.js';
+import { proposalCard } from '../src/components/proposal-card.js';
 
 test('profile is accessible from the footer account, without profile or members navigation tabs', () => {
   for (const role of ['business', 'student']) {
@@ -84,20 +85,53 @@ test('old account responses cannot populate another user’s proposals', async (
     if (previous === undefined) delete globalThis.window;
     else globalThis.window = previous;
   });
-  const store = createStore({ ...createInitialState(), auth: { user: { id: 'student-a' } } });
+  const auth = (id) => ({
+    status: 'authenticated',
+    user: { id },
+    profile: { id, role: 'student' },
+  });
+  const store = createStore({ ...createInitialState(), auth: auth('student-a') });
   const pending = [];
   const controller = createProposalsController({
     store,
     router: { render() {} },
-    service: { list: () => new Promise((resolve) => pending.push(resolve)) },
+    repository: { list: () => new Promise((resolve) => pending.push(resolve)) },
   });
-  const first = controller.sync();
-  store.update((s) => ({ ...s, auth: { user: { id: 'student-b' } } }));
-  const second = controller.sync();
+  const first = controller.load();
+  await Promise.resolve();
+  store.update((s) => ({ ...s, auth: auth('student-b') }));
+  const second = controller.load();
+  await Promise.resolve();
   pending[1]([{ id: 'b' }]);
   await second;
   pending[0]([{ id: 'a' }]);
   await first;
-  assert.deepEqual(store.getState().proposalsData.items, [{ id: 'b' }]);
+  assert.deepEqual(store.getState().proposals.items, [{ id: 'b' }]);
   controller.dispose();
+});
+
+test('canonical API proposal cards retain safe student profile navigation without exposing arbitrary link targets', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const item = {
+    id,
+    taskId: 47,
+    taskTitle: 'Задача',
+    teamName: 'Команда',
+    idea: 'Идея',
+    plan: 'План',
+    deadline: 'Неделя',
+    prototypeUrl: null,
+    status: 'pending',
+    decidedAt: null,
+    createdAt: '2026-09-23T12:00:00Z',
+    counterpartId: id,
+  };
+  assert.match(
+    proposalCard(item, { canDecide: true }),
+    new RegExp(`href="#/profile\\?user=${id}">Профиль студента`),
+  );
+  assert.doesNotMatch(
+    proposalCard({ ...item, counterpartId: '"><script>bad</script>' }, { canDecide: true }),
+    /href="#\/profile|<script>/,
+  );
 });
