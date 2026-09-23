@@ -13,7 +13,7 @@ export function isAuthCallbackHash(hash) {
 export function parseRoute(hash) {
   const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
   const params = new URLSearchParams(query);
-  return { name: path || 'home', taskId: params.has('id') ? Number(params.get('id')) : 2 };
+  return { name: path || 'home', taskId: params.has('id') ? Number(params.get('id')) : null };
 }
 
 const routes = {
@@ -54,12 +54,11 @@ export function createRouter({ root, store, feedback, motion, onRoute = () => {}
       'proposals',
       'student',
       'my-proposals',
-      'team',
       'profile',
       'members',
     ];
     const businessPages = ['dashboard', 'my-tasks', 'create', 'clarify', 'editor', 'proposals'];
-    const studentPages = ['student', 'my-proposals', 'team'];
+    const studentPages = ['student', 'my-proposals'];
     if (privatePages.includes(name) && auth.status === 'initializing') {
       root.innerHTML = '<div class="auth-loading" role="status">Проверяем вход…</div>';
       document.title = 'Вход — AI Sana';

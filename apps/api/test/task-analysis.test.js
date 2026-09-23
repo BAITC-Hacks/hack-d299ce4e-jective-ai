@@ -6,6 +6,12 @@ import { createApp } from '../src/app.js';
 import { rubric, validateScoring } from '../src/modules/task-analysis/scoring.js';
 import { createTaskAnalysisService, fields } from '../src/modules/task-analysis/service.js';
 
+const authService = {
+  async getCurrentUser() {
+    return { profile: { role: 'business' } };
+  },
+};
+
 const description = 'Образовательный центр хочет выяснить причины оттока учеников.';
 const questions = ['data', 'users', 'successCriteria'].map((field) => ({
   id: field,
@@ -51,7 +57,7 @@ test('HTTP routes call OpenAI Responses with strict schemas and keep secrets ser
       return Response.json(completed(calls.length === 1 ? analysis : result));
     },
   });
-  const app = createApp({ analysisService: service });
+  const app = createApp({ analysisService: service, authService });
   const first = await request(app, 'questions', { description });
   assert.equal(first.status, 200);
   assert.deepEqual(first.json.data, analysis);
@@ -83,7 +89,7 @@ test('bad bodies, unsupported methods, missing keys and invalid answers never re
       calls++;
     },
   });
-  const app = createApp({ analysisService: service });
+  const app = createApp({ analysisService: service, authService });
   for (const [operation, body, options, status, code] of [
     ['questions', { description }, { method: 'GET' }, 405, 'METHOD_NOT_ALLOWED'],
     ['questions', { description }, { type: 'text/plain' }, 415, 'UNSUPPORTED_MEDIA_TYPE'],
@@ -198,7 +204,7 @@ test('AI scoring uses a separate quality rubric, validates bounds and computes t
       return Response.json(completed(evaluation));
     },
   });
-  const response = await request(createApp({ analysisService: service }), 'score', {
+  const response = await request(createApp({ analysisService: service, authService }), 'score', {
     card: result,
   });
   assert.equal(response.status, 200);
@@ -218,7 +224,8 @@ test('AI scoring uses a separate quality rubric, validates bounds and computes t
   );
   assert.throws(() => validateScoring({ summary: 'x', criteria: {} }));
   assert.equal(
-    (await request(createApp({ analysisService: service }), 'score', { card: {} })).status,
+    (await request(createApp({ analysisService: service, authService }), 'score', { card: {} }))
+      .status,
     400,
   );
 });
@@ -232,11 +239,40 @@ test('model chooses variable question counts beyond eight, with a strict minimum
         const body = JSON.parse(options.body);
         assert.match(body.instructions, /Strongly prefer more than 5/);
         assert.equal(body.text.format.schema.properties.questions.minItems, 3);
-        assert.equal(body.text.format.schema.properties.questions.maxItems, undefined);
+        assert.equal(body.text.format.schema.properties.questions.maxItems, 100);
         return Response.json(completed({ ...analysis, questions: many }));
       },
     });
     const response = await service.run('questions', { description });
     assert.equal(response.questions.length, count);
   }
+});
+
+test('AI output and input bounds match the persistent task workspace', async () => {
+  const many = Array.from({ length: 101 }, (_, i) => ({ ...questions[i % 3], id: `q${i}` }));
+  for (const [operation, value, input] of [
+    ['questions', { ...analysis, questions: many }, { description }],
+    ['questions', { ...analysis, knownInformation: Array(101).fill('Fact') }, { description }],
+    ['generate', { ...result, title: 'x'.repeat(201) }, { description, questions, answers: {} }],
+  ]) {
+    const service = createTaskAnalysisService({
+      apiKey: 'test',
+      fetchImpl: async () => Response.json(completed(value)),
+    });
+    await assert.rejects(service.run(operation, input), { code: 'AI_INVALID_RESPONSE' });
+  }
+  let calls = 0;
+  const service = createTaskAnalysisService({
+    apiKey: 'test',
+    fetchImpl: async () => {
+      calls++;
+    },
+  });
+  await assert.rejects(service.run('generate', { description, questions: many, answers: {} }), {
+    code: 'INVALID_ANSWERS',
+  });
+  await assert.rejects(service.run('score', { card: { ...result, title: 'x'.repeat(201) } }), {
+    code: 'INVALID_CARD',
+  });
+  assert.equal(calls, 0);
 });

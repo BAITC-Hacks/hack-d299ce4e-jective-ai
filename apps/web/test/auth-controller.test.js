@@ -190,14 +190,14 @@ test('logout clears identity and personal state but keeps the shared catalogue',
   store.update((state) => ({
     ...state,
     savedTaskIds: [5],
-    proposalSent: true,
+    proposals: { items: [{ id: 'private-proposal' }], status: 'ready', error: '' },
     catalog: { items: [{ id: 7 }], status: 'ready', error: '' },
   }));
   await controller.logout();
   assert.equal(store.getState().auth.status, 'anonymous');
   assert.equal(store.getState().auth.user, null);
   assert.deepEqual(store.getState().savedTaskIds, []);
-  assert.equal(store.getState().proposalSent, false);
+  assert.deepEqual(store.getState().proposals.items, []);
   assert.deepEqual(store.getState().catalog.items, [{ id: 7 }]);
   assert.equal(calls.signedOut, 1);
 });
@@ -215,7 +215,11 @@ test('token refresh preserves personal state but a different verified account cl
   });
   t.after(() => controller.dispose());
   await controller.start();
-  store.update((state) => ({ ...state, savedTaskIds: [5], proposalSent: true }));
+  store.update((state) => ({
+    ...state,
+    savedTaskIds: [5],
+    proposals: { items: [{ id: 'private-proposal' }], status: 'ready', error: '' },
+  }));
   emit('TOKEN_REFRESHED', { access_token: 'refresh.payload.signature' });
   await flushTimers();
   assert.deepEqual(store.getState().savedTaskIds, [5]);
@@ -224,7 +228,7 @@ test('token refresh preserves personal state but a different verified account cl
   assert.equal(store.getState().auth.user.id, secondId);
   assert.equal(store.getState().role, 'business');
   assert.deepEqual(store.getState().savedTaskIds, []);
-  assert.equal(store.getState().proposalSent, false);
+  assert.deepEqual(store.getState().proposals.items, []);
 });
 
 test('a profile request resolving after signout cannot restore identity', async (t) => {
@@ -339,6 +343,23 @@ test('disposal unsubscribes, cancels scheduled events and ignores late profile r
   assert.equal(calls.renders, previousRenders);
   assert.deepEqual(store.getState(), previousState);
   assert.deepEqual(calls.authenticated, []);
+});
+
+test('same-account refresh retains verified identity for in-flight saves while routes remain gated', async (t) => {
+  const waiting = deferred();
+  const { controller, store, emit } = fixture({
+    getSession: async () => ({ ...session, user: identity.user }),
+    getIdentity: async (token) => (token === 'new.payload.signature' ? waiting.promise : identity),
+  });
+  t.after(() => controller.dispose());
+  await controller.start();
+  emit('TOKEN_REFRESHED', { access_token: 'new.payload.signature', user: identity.user });
+  await flushTimers();
+  assert.equal(store.getState().auth.status, 'initializing');
+  assert.equal(store.getState().auth.user.id, identity.user.id);
+  waiting.resolve(identity);
+  await flushTimers();
+  assert.equal(store.getState().auth.status, 'authenticated');
 });
 
 test('invalid registration data and unavailable configuration never call signup', async (t) => {

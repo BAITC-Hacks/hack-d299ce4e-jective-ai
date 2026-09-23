@@ -14,9 +14,7 @@ export function landing(state) {
         ><a href="#/student">Для студентов</a
         ><button class="text-btn" data-scroll="how">Как это работает</button>
       </nav>
-      <div class="head-actions">
-        ${signedIn ? btn('Личный кабинет ↗', 'profile') : btn('Войти', 'login', 'ghost') + btn('Регистрация ↗', 'register')}
-      </div>
+      ${signedIn ? '' : `<div class="head-actions">${btn('Войти', 'login', 'ghost')}${btn('Регистрация ↗', 'register')}</div>`}
     </header>
     <section class="hero-v2">
       <div class="hero-grid" aria-hidden="true"></div>

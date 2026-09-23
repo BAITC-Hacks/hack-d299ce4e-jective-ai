@@ -66,12 +66,25 @@ export function bindEvents(context) {
     ...(context.proposals ? { 'confirm-publish': () => context.proposals.publish() } : {}),
     forgot: auth.forgot,
     logout: auth.logout,
+    'force-logout': auth.forceLogout,
     'retry-auth': auth.retry,
     close: feedback.closeModal,
   };
   const controller = new AbortController();
   const listen = (type, handler) =>
     document.addEventListener(type, handler, { signal: controller.signal });
+  window.addEventListener(
+    'beforeunload',
+    (event) => {
+      if (!workspace.hasUnsaved()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    },
+    { signal: controller.signal },
+  );
+  listen('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') void workspace.flush();
+  });
 
   function dispatch(name, element) {
     const publicActions = ['forgot', 'close', 'logout', 'retry-auth', 'retry-catalog'];
@@ -112,6 +125,9 @@ export function bindEvents(context) {
       });
       return;
     }
+    if ((route || action) === 'create' && store.getState().taskSave.task) {
+      if (!workspace.newDraft()) return;
+    }
     if (route) return router.navigate(route);
     if (action) dispatch(action, element);
   });
@@ -137,6 +153,26 @@ export function bindEvents(context) {
     if (event.target.closest('#profile-form'))
       context.profiles.capture(event.target.closest('form'));
     const input = event.target;
+    const meta = input.dataset.taskMeta;
+    if (['industry', 'direction', 'tags'].includes(meta)) {
+      store.update((state) => ({
+        ...state,
+        taskMetadata: {
+          ...state.taskMetadata,
+          [meta]:
+            meta === 'tags'
+              ? [
+                  ...new Set(
+                    input.value
+                      .split(',')
+                      .map((tag) => tag.trim())
+                      .filter(Boolean),
+                  ),
+                ]
+              : input.value,
+        },
+      }));
+    }
     if (input.dataset.analysisAnswer !== undefined)
       analysis.setAnswer(input.dataset.analysisAnswer, input.value);
     if (input.dataset.analysisField !== undefined) {

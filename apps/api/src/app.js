@@ -1,5 +1,5 @@
 import { API_PATHS } from '@ai-sana/contracts';
-import { createDemoTaskRepository } from './modules/tasks/repository.js';
+import { createSupabaseTaskRepository } from './modules/tasks/repository.js';
 import { createTaskService } from './modules/tasks/service.js';
 import { createTaskRouter } from './modules/tasks/router.js';
 import { createAuthRouter } from './modules/auth/router.js';
@@ -28,19 +28,22 @@ function sendJson(request, response, status, payload, headers = {}) {
 
 /**
  * Build a Node HTTP handler without binding a port.
- * @param {{ taskRepository?: import('./modules/tasks/repository.js').TaskRepository,
+ * @param {{ taskRepository?: ReturnType<typeof createSupabaseTaskRepository>,
+ *   proposalRepository?: ReturnType<typeof createSupabaseProposalRepository>,
  *   authService?: ReturnType<typeof createSupabaseAuthService>,
  *   logger?: Pick<Console, 'error'> }} [options]
  */
 export function createApp({
-  taskRepository = createDemoTaskRepository(),
+  taskRepository = createSupabaseTaskRepository(),
+  proposalRepository = createSupabaseProposalRepository(),
   authService = createSupabaseAuthService(),
   logger = console,
   analysisService = createTaskAnalysisService(),
   transcriptionService = createTranscriptionService(),
   attachmentsService = createAttachmentsService(),
 } = {}) {
-  const tasks = createTaskRouter(createTaskService(taskRepository));
+  const tasks = createTaskRouter(createTaskService(taskRepository, authService));
+  const proposals = createProposalRouter(createProposalService(proposalRepository, authService));
   const auth = createAuthRouter(authService);
   const attachments = createAttachmentsRouter(attachmentsService, authService);
   async function attachmentContexts(request, ids) {
@@ -60,6 +63,7 @@ export function createApp({
 
   return async function handleRequest(request, response) {
     let analysisOperation;
+    let allowedMethods = ['GET', 'HEAD'];
     try {
       let url;
       try {
@@ -102,10 +106,19 @@ export function createApp({
         sendJson(request, response, 200, { data });
         return;
       }
+      const taskRoute =
+        tasks.resolve(url.pathname, request) || proposals.resolve(url.pathname, request);
+      if (taskRoute) {
+        allowedMethods = taskRoute.methods;
+        if (!allowedMethods.includes(request.method))
+          throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'HTTP method is not supported.');
+        sendJson(request, response, 200, { data: await taskRoute.execute() });
+        return;
+      }
       const operation =
         url.pathname === API_PATHS.health
           ? () => ({ status: 'ok' })
-          : auth.resolve(url.pathname, request) || tasks.resolve(url.pathname);
+          : auth.resolve(url.pathname, request);
       if (!operation) throw new HttpError(404, 'NOT_FOUND', 'Route not found.');
       if (request.method !== 'GET' && request.method !== 'HEAD') {
         throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Only GET and HEAD are supported.');
@@ -114,7 +127,7 @@ export function createApp({
       sendJson(request, response, 200, { data: await operation() });
     } catch (error) {
       const expected = error instanceof HttpError;
-      if (!expected) logger.error('API request failed:', error);
+      if (!expected) logger.error('API request failed.');
       const status = expected ? error.status : 500;
       sendJson(
         request,

@@ -98,13 +98,13 @@ function fixture({ getUser, findProfile, clientFactory } = {}) {
   };
 }
 
-test('unconfigured authentication returns 503 while health and tasks keep working', async () => {
+test('unconfigured services return actionable 503 while health keeps working', async () => {
   const app = createApp();
   const response = await request(app);
   assert.equal(response.status, 503);
   assert.equal(response.json.error.code, 'AUTH_NOT_CONFIGURED');
   assert.equal((await request(app, { url: '/api/health' })).status, 200);
-  assert.equal((await request(app, { url: '/api/tasks' })).status, 200);
+  assert.equal((await request(app, { url: '/api/tasks' })).status, 503);
 });
 
 test('verified users get their own database profiles with isolated clients and no metadata role trust', async () => {

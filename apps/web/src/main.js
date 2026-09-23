@@ -8,11 +8,18 @@ import { createFeedback } from './shared/feedback.js';
 import { createMotion } from './shared/motion.js';
 import { createTasksRepository } from './features/tasks/repository.js';
 import { createCatalogController } from './features/tasks/catalog-controller.js';
+import { createWorkspaceController } from './features/tasks/workspace-controller.js';
+import { createPublicationController } from './features/tasks/publication-controller.js';
+import { createTaskAnalysisService } from './services/ai/taskAnalysis.js';
+import { workspaceFeedback } from './pages/task-editor.js';
 import { createHttpClient } from './shared/api/client.js';
 import { createBrowserSupabase } from './shared/supabase.js';
 import { createAuthService } from './features/auth/service.js';
 import { createAuthController } from './features/auth/controller.js';
 import { syncAuthForm } from './features/auth/actions.js';
+import { createProposalsRepository } from './features/proposals/repository.js';
+import { createProposalsController } from './features/proposals/controller.js';
+import { syncProposalForm } from './features/proposals/form.js';
 import './styles/auth.css';
 import './styles/attachments.css';
 import './styles/task-editor.css';
@@ -69,6 +76,14 @@ const authController = createAuthController({
   store,
   service: authService,
   render: () => {
+    const userId = store.getState().auth.user?.id || null;
+    if (userId !== visibleUserId) {
+      feedback.closeModal();
+      workspace.reset();
+      publication.reset();
+      proposals.reset();
+      visibleUserId = userId;
+    }
     if (store.getState().auth.status !== 'authenticated' && syncAuthForm(store.getState().auth))
       return;
     router.render();
@@ -84,7 +99,12 @@ const authController = createAuthController({
       router.navigate(profile.role === 'business' ? 'dashboard' : 'student');
     }
   },
-  onSignedOut: () => router.navigate('home'),
+  onSignedOut: () => {
+    workspace.reset();
+    publication.reset();
+    proposals.reset();
+    router.navigate('home');
+  },
 });
 const catalog = createCatalogController({
   store,
@@ -144,6 +164,10 @@ void catalog.load();
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     authController.dispose();
+    workspace.dispose();
+    publication.dispose();
+    proposals.dispose();
+    window.removeEventListener('hashchange', refreshProposals);
     supabase?.auth.stopAutoRefresh();
     catalog.dispose();
     attachments.dispose();

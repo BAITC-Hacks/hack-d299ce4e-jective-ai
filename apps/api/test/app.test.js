@@ -4,6 +4,15 @@ import { demoTasks } from '@ai-sana/contracts/fixtures';
 import { createApp } from '../src/app.js';
 import { readServerConfig } from '../src/config.js';
 
+const taskRepository = {
+  async list() {
+    return structuredClone(demoTasks);
+  },
+  async findById(id) {
+    return structuredClone(demoTasks.find((task) => task.id === id) ?? null);
+  },
+};
+
 async function request(app, url, method = 'GET') {
   const response = {
     writeHead(status, headers) {
@@ -19,7 +28,7 @@ async function request(app, url, method = 'GET') {
 }
 
 test('health, catalogue and task detail share the public response envelope', async () => {
-  const app = createApp();
+  const app = createApp({ taskRepository });
   assert.deepEqual((await request(app, '/api/health')).json, { data: { status: 'ok' } });
   const catalogue = await request(app, '/api/tasks?source=test');
   assert.equal(catalogue.status, 200);
@@ -28,7 +37,7 @@ test('health, catalogue and task detail share the public response envelope', asy
 });
 
 test('HEAD has GET headers with no body, including not-found responses', async () => {
-  const app = createApp();
+  const app = createApp({ taskRepository });
   for (const url of ['/api/health', '/api/tasks', '/api/tasks/2', '/missing']) {
     const get = await request(app, url);
     const head = await request(app, url, 'HEAD');
@@ -39,7 +48,7 @@ test('HEAD has GET headers with no body, including not-found responses', async (
 });
 
 test('invalid IDs, missing tasks, unknown routes and unsupported writes have explicit errors', async () => {
-  const app = createApp();
+  const app = createApp({ taskRepository });
   for (const [url, status, code] of [
     ['/api/tasks/0', 400, 'INVALID_TASK_ID'],
     ['/api/tasks/abc', 400, 'INVALID_TASK_ID'],
@@ -50,9 +59,9 @@ test('invalid IDs, missing tasks, unknown routes and unsupported writes have exp
     assert.equal(response.status, status);
     assert.equal(response.json.error.code, code);
   }
-  const response = await request(app, '/api/tasks', 'POST');
+  const response = await request(app, '/api/tasks', 'DELETE');
   assert.equal(response.status, 405);
-  assert.equal(response.headers.Allow, 'GET, HEAD');
+  assert.equal(response.headers.Allow, 'GET, HEAD, POST');
   assert.equal(response.json.error.code, 'METHOD_NOT_ALLOWED');
 });
 

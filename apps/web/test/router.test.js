@@ -60,8 +60,8 @@ function authRouter(
 }
 
 test('hash routes preserve task IDs and the default entry points', () => {
-  assert.deepEqual(parseRoute(''), { name: 'home', taskId: 2 });
-  assert.deepEqual(parseRoute('#/detail'), { name: 'detail', taskId: 2 });
+  assert.deepEqual(parseRoute(''), { name: 'home', taskId: null });
+  assert.deepEqual(parseRoute('#/detail'), { name: 'detail', taskId: null });
   assert.deepEqual(parseRoute('#/detail?id=3'), { name: 'detail', taskId: 3 });
 });
 
@@ -205,6 +205,18 @@ test('anonymous users can browse public catalog without an authentication redire
   assert.match(root.innerHTML, /Каталог бизнес-задач/);
   assert.ok(root.innerHTML.includes(demoTasks[0].title));
   assert.doesNotMatch(root.innerHTML, /id="login-form"|auth-loading/);
+});
+
+test('removed team route falls back to home instead of rendering the demo team', (t) => {
+  const { root, router, location } = authRouter(t, {
+    hash: '#/team',
+    status: 'authenticated',
+    profileRole: 'student',
+  });
+  router.start();
+  assert.equal(location.hash, '#/home');
+  assert.match(root.innerHTML, /landing-v2/);
+  assert.doesNotMatch(root.innerHTML, /Моя команда|Data Wizards|Демонстрационная команда/);
 });
 
 test('auth callback detection distinguishes Supabase results from ordinary application routes', () => {

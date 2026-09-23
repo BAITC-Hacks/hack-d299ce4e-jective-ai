@@ -19,7 +19,7 @@ test('all pages render on Node without browser globals or modifying their input'
     assert.ok(html.includes('AI Sana'), name);
   }
   assert.ok(pages.auth(state, true).includes('id="register-form"'));
-  assert.ok(pages.simple(state, 'team').includes('Data Wizards'));
+  assert.ok(!pages.simple(state).includes('Data Wizards'));
   assert.deepEqual(state, before);
 });
 
@@ -45,6 +45,7 @@ test('catalog and details expose loading and failures instead of stale task cont
 
 test('each catalog link opens its own task details, and missing IDs have a not-found view', () => {
   const state = readyState();
+  state.fields['Доступные данные'] = 'Private unsaved editor data';
   const catalog = pages.catalog(state);
   for (const task of state.catalog.items) {
     assert.ok(catalog.includes(`detail?id=${task.id}`));
@@ -52,7 +53,7 @@ test('each catalog link opens its own task details, and missing IDs have a not-f
     const html = pages.detail(state);
     assert.ok(html.includes(`<h1>${task.title}</h1>`));
     assert.ok(html.includes(task.description));
-    if (task.id !== 2) assert.ok(!html.includes(state.fields['Доступные данные']));
+    assert.ok(!html.includes(state.fields['Доступные данные']));
   }
   state.currentTaskId = 999;
   assert.ok(pages.detail(state).includes('Задача не найдена'));
@@ -93,15 +94,32 @@ test('editor offers real AI scoring instead of a fabricated readiness score', ()
   state.published = true;
   state.currentTaskId = 5;
   state.catalog.status = 'error';
-  assert.ok(pages.detail(state).includes('Анализ и прогнозирование оттока клиентов'));
+  assert.ok(pages.detail(state).includes('Не удалось загрузить задачи'));
+  assert.ok(!pages.detail(state).includes('Анализ и прогнозирование оттока клиентов'));
 });
 
 test('submitted proposal keeps its original task when another task is viewed', () => {
   const state = readyState();
-  state.proposalSent = true;
-  state.proposedTaskId = 4;
+  state.proposals = {
+    status: 'ready',
+    error: '',
+    items: [
+      {
+        id: '11111111-1111-4111-8111-111111111111',
+        taskId: 4,
+        taskTitle: '<script>Original task</script>',
+        teamName: 'Команда',
+        idea: 'Идея',
+        plan: 'План',
+        deadline: 'Две недели',
+        prototypeUrl: null,
+        createdAt: '2026-09-23T00:00:00Z',
+        status: 'pending',
+        decidedAt: null,
+      },
+    ],
+  };
   state.currentTaskId = 1;
-  state.catalog.items.find((task) => task.id === 4).title = '<script>Original task</script>';
   const before = pages.myProposals(state);
   assert.ok(before.includes('detail?id=4'));
   assert.ok(before.includes('&lt;script&gt;Original task&lt;/script&gt;'));

@@ -19,7 +19,7 @@ function stop(code = 0) {
 
 for (const [cwd, args, env] of [
   [apiRoot, ['--watch', 'src/server.js'], process.env],
-  [webRoot, [viteBin, ...process.argv.slice(2)], { ...process.env, VITE_DATA_SOURCE: 'api' }],
+  [webRoot, [viteBin, ...process.argv.slice(2)], process.env],
 ]) {
   const child = spawn(process.execPath, args, { cwd, env, stdio: 'inherit' });
   children.push(child);

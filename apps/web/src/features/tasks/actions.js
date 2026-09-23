@@ -1,12 +1,20 @@
 import { btn } from '../../components/ui.js';
 import { esc } from '../../shared/html.js';
-import { level } from './model.js';
 
-export function createTaskActions({ store, router, feedback, catalog, scoring }) {
-  const { modal, toast, closeModal, success } = feedback;
+export function createTaskActions({
+  store,
+  router,
+  feedback,
+  catalog,
+  scoring,
+  publication,
+  workspace,
+}) {
+  const { modal, toast, closeModal } = feedback;
   let editingField = 'Критерии успеха';
 
   function editField(field, improve = false) {
+    if (store.getState().taskSave.status === 'saving') return;
     if (!Object.hasOwn(store.getState().fields, field)) return;
     editingField = field;
     modal(/* HTML */ `
@@ -26,31 +34,26 @@ ${improve ? '' : esc(store.getState().fields[field])}</textarea>
   return {
     editField,
     actions: {
-      'save-draft': () => toast('Черновик сохранён в текущей демосессии'),
+      'save-draft': () => publication.save('draft'),
+      'retry-my-tasks': () => publication.loadMine(),
+      'retry-workspace': () => workspace.retry(),
       publish() {
+        if (store.getState().taskSave.status === 'saving') return;
         modal(
           /* HTML */ `<h2>Опубликовать задачу?</h2>
             <p>
-              После публикации задача появится в общем каталоге и студенческие команды смогут
-              отправлять свои предложения.
+              После публикации поля карточки появятся в общем каталоге. Исходное описание, ответы на
+              вопросы AI и контакт бизнеса останутся доступны только вам.
             </p>
             <div class="actions">
               ${btn('Отмена', 'close', 'ghost')}${btn('Опубликовать', 'confirm-publish')}
             </div>`,
         );
       },
-      'confirm-publish'() {
-        store.update((state) => ({ ...state, published: true }));
-        const { rating } = store.getState();
-        success(
-          'Задача опубликована в деморежиме',
-          rating === null ? 'Оценка AI ещё не готова' : `${rating}/100 · ${level(rating)[0]}`,
-          'Посмотреть в каталоге',
-          'catalog',
-        );
-      },
+      'confirm-publish': () => publication.save('published'),
       improve: () => editField('Критерии успеха', true),
       'save-edit'() {
+        if (store.getState().taskSave.status === 'saving') return;
         const value = document.querySelector('#edit-value')?.value.trim();
         if (!value) return toast('Заполните поле перед сохранением');
         store.update((state) => ({

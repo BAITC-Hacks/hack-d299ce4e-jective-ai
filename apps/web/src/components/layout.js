@@ -32,6 +32,9 @@ export function layout(content, page, role = 'business', auth = null) {
         .toLocaleUpperCase('ru')
     : 'Г';
   const items = navItems(role);
+  // Keep profile/logout reachable on phones, where the sidebar is hidden.
+  // Creating a task is still available from the dashboard and task list.
+  const mobileItems = items.filter(([route]) => route !== 'create');
   return /* HTML */ `<div class="shell">
     <aside class="sidebar">
       ${brand()}
@@ -72,7 +75,7 @@ export function layout(content, page, role = 'business', auth = null) {
       <div class="content">${content}</div>
     </main>
     <nav class="mobile-nav">
-      ${items
+      ${mobileItems
         .slice(0, 5)
         .map(
           ([r, t, i]) =>
@@ -97,7 +100,6 @@ export function pageTitle(r) {
       student: 'Обзор',
       'my-proposals': 'Мои отклики',
       proposals: 'Отклики',
-      team: 'Моя команда',
       profile: 'Профиль',
       members: 'Участники',
     }[r] || 'AI Sana'

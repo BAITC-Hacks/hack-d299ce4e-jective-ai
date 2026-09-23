@@ -25,7 +25,7 @@ export function syncAuthForm(auth, documentRef = document) {
   return true;
 }
 
-export function createAuthActions({ authController, store, feedback }) {
+export function createAuthActions({ authController, store, feedback, workspace }) {
   return {
     async submit(form) {
       const values = new FormData(form);
@@ -46,7 +46,16 @@ export function createAuthActions({ authController, store, feedback }) {
         if (password) password.value = '';
       }
     },
-    logout: () => authController.logout(),
+    async logout() {
+      if (workspace?.hasUnsaved() && !(await workspace.flush())) {
+        feedback.modal(
+          `<h2>Черновик не сохранён</h2><p>Не удалось сохранить последние ответы в Supabase. Можно повторить синхронизацию или выйти без последних изменений.</p><div class="actions">${btn('Отмена', 'close', 'ghost')}${btn('Повторить сохранение', 'retry-workspace', 'ghost')}${btn('Выйти без сохранения', 'force-logout')}</div>`,
+        );
+        return;
+      }
+      await authController.logout();
+    },
+    forceLogout: () => authController.logout(),
     retry: () => authController.retry(),
     forgot() {
       feedback.modal(

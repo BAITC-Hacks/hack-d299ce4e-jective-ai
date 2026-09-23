@@ -4,6 +4,12 @@ import { getTask } from '../tasks/model.js';
 export function createProposalActions({ store, router, feedback }) {
   const { modal, toast, closeModal, success } = feedback;
 
+export function createProposalActions({ store, feedback, proposals }) {
+  function requireStudent() {
+    if (canProposeSolution(store.getState().auth)) return true;
+    feedback.toast('Предлагать решения могут только пользователи, вошедшие как студент.');
+    return false;
+  }
   return {
     offer() {
       const state = store.getState();
@@ -116,10 +122,13 @@ export function createProposalActions({ store, router, feedback }) {
           </div>`,
       );
     },
-    'confirm-reject'() {
-      closeModal();
-      toast('Предложение отклонено в деморежиме');
+    'offer-success'(values) {
+      if (!requireStudent()) return;
+      return proposals.submit(values);
     },
-    prototype: () => toast('Ссылка на прототип недоступна в демо'),
+    'retry-proposals': () => proposals.load({ force: true }),
+    'refresh-proposals': () => proposals.load({ force: true }),
+    'accept-proposal': (id) => proposals.decide(id, 'accepted'),
+    'reject-proposal': (id) => proposals.decide(id, 'rejected'),
   };
 }

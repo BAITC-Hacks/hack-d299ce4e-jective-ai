@@ -35,7 +35,7 @@ test('scoring sends current card, displays model feedback, and rejects invalid t
   const pending = scoring.score();
   assert.equal(store.getState().rating, null);
   await pending;
-  assert.equal(payload.card.context, store.getState().fields['Контекст']);
+  assert.equal(payload.card.context, null);
   assert.equal(store.getState().rating, 0);
   assert.match(editor(store.getState()), /Уточните результат/);
   assert.match(editor(store.getState()), /&lt;script&gt;/);

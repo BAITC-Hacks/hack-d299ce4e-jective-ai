@@ -59,7 +59,16 @@ export function createAuthController({
     }
     const current = ++revision;
     activeToken = session.access_token;
-    patch({ status: 'initializing', user: null, profile: null, error: '' });
+    // Retain the last verified identity during a same-account token refresh. Private
+    // routes remain gated by status; in-flight saves retain their account scope.
+    const previous = store.getState().auth;
+    const sameAccount = verifiedUserId && session.user?.id === verifiedUserId;
+    patch({
+      status: 'initializing',
+      user: sameAccount ? previous.user : null,
+      profile: sameAccount ? previous.profile : null,
+      error: '',
+    });
     const request = service
       .getIdentity(session.access_token)
       .then((identity) => {

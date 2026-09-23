@@ -1,4 +1,4 @@
-import { I, btn, badge, stat } from '../components/ui.js';
+import { I, btn, badge } from '../components/ui.js';
 import { layout } from '../components/layout.js';
 import { esc } from '../shared/html.js';
 import { getTask } from '../features/tasks/model.js';
@@ -21,10 +21,10 @@ export function student(state) {
         ${stat(state.proposalsData?.items?.length || 0, 'Отправлено предложений', 'list')}${stat(state.proposalsData?.items?.filter((p) => p.status === 'pending').length || 0, 'На рассмотрении', 'clock')}${stat(state.proposalsData?.items?.filter((p) => p.status === 'selected').length || 0, 'Команда выбрана', 'check')}
       </div>
       <div class="section-head">
-        <h2 class="section-title">Мои отклики</h2>
-        <button class="text-btn" data-route="my-proposals">Все отклики →</button>
+        <h2 class="section-title">Новые задачи</h2>
+        <button class="text-btn" data-route="catalog">Весь каталог →</button>
       </div>
-      ${proposalList(state)}`,
+      ${recentTasks(state)}`,
     'student',
     'student',
     state.auth,
@@ -67,8 +67,11 @@ function proposalList(state) {
 
 export function myProposals(state) {
   return layout(
-    /* HTML */ `<h1 class="page-title">Мои отклики</h1>
-      <p class="sub">Следите за статусом предложений вашей команды.</p>
+    /* HTML */ `<div class="row" style="justify-content:space-between;flex-wrap:wrap">
+        <h1 class="page-title">Мои отклики</h1>
+        ${btn('Обновить', 'refresh-proposals', 'ghost small', state.proposals?.status === 'loading' ? 'disabled' : '')}
+      </div>
+      <p class="sub">Ваши сохранённые предложения по задачам бизнеса.</p>
       <div style="margin-top:25px">${proposalList(state)}</div>`,
     'my-proposals',
     'student',

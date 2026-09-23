@@ -3,19 +3,20 @@ import test from 'node:test';
 import { demoTasks } from '@ai-sana/contracts/fixtures';
 import { createTasksRepository } from '../src/features/tasks/repository.js';
 
-test('mock repository returns independent public task objects without contacting the API', async () => {
+test('legacy mock settings cannot reintroduce fixtures when database is empty', async () => {
+  let calls = 0;
   const repository = createTasksRepository(
     { dataSource: 'mock' },
     {
-      get() {
-        throw new Error('Mock mode must not make HTTP requests.');
+      async get(path) {
+        calls += 1;
+        assert.equal(path, '/tasks');
+        return [];
       },
     },
   );
-  const first = await repository.list();
-  first[0].title = 'Changed';
-  first[0].tags.push('Changed');
-  assert.deepEqual(await repository.list(), demoTasks);
+  assert.deepEqual(await repository.list(), []);
+  assert.equal(calls, 1);
 });
 
 test('API repository fetches the endpoint and validates/sanitizes task DTOs', async () => {
@@ -38,7 +39,7 @@ test('API repository fetches the endpoint and validates/sanitizes task DTOs', as
   await assert.rejects(repository.list(), TypeError);
 });
 
-test('API failures propagate and unknown data sources are rejected', async () => {
+test('API failures propagate without a fallback', async () => {
   const failure = new Error('API offline');
   const repository = createTasksRepository(
     { dataSource: 'api' },
@@ -49,5 +50,29 @@ test('API failures propagate and unknown data sources are rejected', async () =>
     },
   );
   await assert.rejects(repository.list(), (error) => error === failure);
-  assert.throws(() => createTasksRepository({ dataSource: 'unexpected' }), /Unknown/);
+});
+
+test('private task reads require a fresh access token for the expected account', async () => {
+  let expected;
+  let headers;
+  const repository = createTasksRepository(
+    {},
+    {
+      async get(path, options) {
+        assert.equal(path, '/tasks/mine');
+        headers = options.headers;
+        return [];
+      },
+    },
+    {
+      getAccessToken: async (userId) => {
+        expected = userId;
+        return 'user-session-token';
+      },
+    },
+  );
+  assert.deepEqual(await repository.mine({ userId: 'owner' }), []);
+  assert.equal(expected, 'owner');
+  assert.equal(headers.Authorization, 'Bearer user-session-token');
+  await assert.rejects(createTasksRepository({}).mine(), { code: 'UNAUTHORIZED' });
 });
