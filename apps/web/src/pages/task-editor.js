@@ -48,6 +48,7 @@ export function create(state) {
     `<div class="narrow">${stepper(step)}<span class="eyebrow">Шаг ${step} из 4</span><h1 class="page-title">Опишите вашу бизнес-задачу</h1><p class="sub">Опишите проблему своими словами — AI поможет оформить её правильно.</p><p class="hint">OpenAI анализирует описание и ответы. Проверьте результат перед публикацией.</p>${analysisContent(state, flow)}</div>`,
     'create',
     'business',
+    state.auth,
   );
 }
 
@@ -100,5 +101,6 @@ export function editor(state) {
       )}</div>${rating(state)}</div><div class="editor-actions">${btn('Сохранить черновик', 'save-draft', 'ghost')}${btn('Опубликовать задачу ' + I('arrow', 16), 'publish')}</div>`,
     'editor',
     'business',
+    state.auth,
   );
 }

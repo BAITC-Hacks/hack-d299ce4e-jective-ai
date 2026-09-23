@@ -18,6 +18,8 @@ export function bindEvents(context) {
     'score-task': () => scoring.score(),
     ...createProposalActions(context),
     forgot: auth.forgot,
+    logout: auth.logout,
+    'retry-auth': auth.retry,
     close: feedback.closeModal,
   };
   const controller = new AbortController();
@@ -25,6 +27,15 @@ export function bindEvents(context) {
     document.addEventListener(type, handler, { signal: controller.signal });
 
   function dispatch(name) {
+    const publicActions = ['forgot', 'close', 'logout', 'retry-auth', 'retry-catalog'];
+    if (
+      Object.hasOwn(actions, name) &&
+      !publicActions.includes(name) &&
+      store.getState().auth.status !== 'authenticated'
+    ) {
+      router.navigate('login');
+      return;
+    }
     if (Object.hasOwn(actions, name)) actions[name]();
     else router.navigate(name);
   }
@@ -46,9 +57,11 @@ export function bindEvents(context) {
     if (edit) return tasks.editField(edit);
     if (role && ['business', 'student'].includes(role)) {
       store.update((state) => ({ ...state, role }));
-      document
-        .querySelectorAll('.role')
-        .forEach((item) => item.classList.toggle('selected', item.dataset.role === role));
+      document.querySelectorAll('.role').forEach((item) => {
+        const selected = item.dataset.role === role;
+        item.classList.toggle('selected', selected);
+        item.setAttribute('aria-pressed', String(selected));
+      });
       return;
     }
     if (route) return router.navigate(route);
@@ -58,7 +71,7 @@ export function bindEvents(context) {
   listen('submit', (event) => {
     if (['login-form', 'register-form'].includes(event.target.id)) {
       event.preventDefault();
-      auth.signIn();
+      void auth.submit(event.target);
     } else if (event.target.id === 'offer-form') {
       event.preventDefault();
       dispatch('offer-success');

@@ -1,6 +1,7 @@
 import { I, brand, btn, badge, progress } from '../components/ui.js';
 
-export function landing() {
+export function landing(state) {
+  const signedIn = state?.auth?.status === 'authenticated' && state.auth.profile;
   return /* HTML */ `<div class="landing landing-v2">
     <div class="announcement">
       AI Sana <span>От бизнес-задачи к первому реальному проекту</span>
@@ -14,7 +15,7 @@ export function landing() {
         ><button class="text-btn" data-scroll="how">Как это работает</button>
       </nav>
       <div class="head-actions">
-        ${btn('Войти', 'login', 'ghost')}${btn('Регистрация ↗', 'register')}
+        ${signedIn ? btn('Личный кабинет ↗', 'profile') : btn('Войти', 'login', 'ghost') + btn('Регистрация ↗', 'register')}
       </div>
     </header>
     <section class="hero-v2">

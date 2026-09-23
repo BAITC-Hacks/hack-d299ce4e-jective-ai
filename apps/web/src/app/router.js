@@ -1,6 +1,14 @@
 import * as pages from '../pages/index.js';
 import { pageTitle } from '../components/layout.js';
 
+/** Keep confirmation tokens intact until the Supabase SDK has consumed the callback. */
+export function isAuthCallbackHash(hash) {
+  const params = new URLSearchParams(hash.replace(/^#/, ''));
+  return ['access_token', 'refresh_token', 'error', 'error_description', 'error_code'].some((key) =>
+    params.has(key),
+  );
+}
+
 export function parseRoute(hash) {
   const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
   const params = new URLSearchParams(query);
@@ -27,8 +35,46 @@ const routes = {
 
 export function createRouter({ root, store, feedback, motion }) {
   function render({ scrollToTop = false } = {}) {
+    if (isAuthCallbackHash(window.location.hash)) {
+      root.innerHTML = '<div class="auth-loading" role="status">Подтверждаем вход…</div>';
+      return;
+    }
     const route = parseRoute(window.location.hash);
-    const name = Object.hasOwn(routes, route.name) ? route.name : 'home';
+    let name = Object.hasOwn(routes, route.name) ? route.name : 'home';
+    const auth = store.getState().auth;
+    const privatePages = [
+      'dashboard',
+      'my-tasks',
+      'create',
+      'clarify',
+      'editor',
+      'proposals',
+      'student',
+      'my-proposals',
+      'team',
+      'profile',
+    ];
+    const businessPages = ['dashboard', 'my-tasks', 'create', 'clarify', 'editor', 'proposals'];
+    const studentPages = ['student', 'my-proposals', 'team'];
+    if (privatePages.includes(name) && auth.status === 'initializing') {
+      root.innerHTML = '<div class="auth-loading" role="status">Проверяем вход…</div>';
+      document.title = 'Вход — AI Sana';
+      return;
+    }
+    if (privatePages.includes(name) && auth.status !== 'authenticated') name = 'login';
+    if (auth.status === 'authenticated') {
+      const home = auth.profile.role === 'business' ? 'dashboard' : 'student';
+      if (
+        ['login', 'register'].includes(name) ||
+        (businessPages.includes(name) && auth.profile.role !== 'business') ||
+        (studentPages.includes(name) && auth.profile.role !== 'student')
+      )
+        name = home;
+    }
+    if (name !== route.name && route.name !== 'home') {
+      if (window.history?.replaceState) window.history.replaceState(null, '', `#/${name}`);
+      else window.location.hash = `#/${name}`;
+    }
     if (name === 'detail') {
       store.update((state) => ({
         ...state,

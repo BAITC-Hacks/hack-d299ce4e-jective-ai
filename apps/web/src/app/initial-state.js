@@ -31,5 +31,14 @@ export function createInitialState() {
     proposedTaskId: null,
     savedTaskIds: [],
     catalog: { items: [], status: 'idle', error: '' },
+    auth: {
+      configured: false,
+      status: 'initializing',
+      user: null,
+      profile: null,
+      error: '',
+      notice: '',
+      busy: false,
+    },
   };
 }

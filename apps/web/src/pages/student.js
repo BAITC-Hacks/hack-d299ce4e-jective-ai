@@ -26,6 +26,7 @@ export function student(state) {
       ${proposalList(state)}`,
     'student',
     'student',
+    state.auth,
   );
 }
 
@@ -69,5 +70,6 @@ export function myProposals(state) {
       <div style="margin-top:25px">${proposalList(state)}</div>`,
     'my-proposals',
     'student',
+    state.auth,
   );
 }

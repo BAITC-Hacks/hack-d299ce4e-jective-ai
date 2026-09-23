@@ -10,7 +10,8 @@
   ],
   "scripts": {
     "start": "npm run dev",
-    "dev": "npm run dev --workspace=@ai-sana/web --",
+    "dev": "node scripts/dev.js",
+    "dev:web": "npm run dev --workspace=@ai-sana/web --",
     "dev:api": "npm run dev --workspace=@ai-sana/api",
     "dev:full": "node scripts/dev.js",
     "build": "npm run build --workspace=@ai-sana/web",
@@ -22,7 +23,7 @@
     "format:check": "prettier --check ."
   },
   "engines": {
-    "node": "^20.19.0 || ^22.13.0 || >=24.0.0"
+    "node": "^22.13.0 || >=24.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

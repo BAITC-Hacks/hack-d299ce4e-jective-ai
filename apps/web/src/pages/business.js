@@ -1,8 +1,10 @@
 import { I, btn, stat } from '../components/ui.js';
 import { layout } from '../components/layout.js';
 import { taskRow } from '../components/task-row.js';
+import { esc } from '../shared/html.js';
 
 export function dashboard(state) {
+  const fullName = state.auth?.status === 'authenticated' ? state.auth.profile?.full_name : '';
   return layout(
     /* HTML */ `<div
         class="row"
@@ -10,7 +12,7 @@ export function dashboard(state) {
       >
         <div>
           <span class="eyebrow">Панель бизнеса</span>
-          <h1 class="page-title">Добро пожаловать, Алия!</h1>
+          <h1 class="page-title">Добро пожаловать${fullName ? `, ${esc(fullName)}` : ''}!</h1>
           <p class="sub">Управляйте своими задачами и предложениями команд.</p>
         </div>
         ${btn(I('plus', 16) + ' Создать задачу', 'create')}
@@ -27,6 +29,7 @@ export function dashboard(state) {
       </div>`,
     'dashboard',
     'business',
+    state.auth,
   );
 }
 
@@ -44,5 +47,6 @@ export function myTasks(state) {
       </div>`,
     'my-tasks',
     'business',
+    state.auth,
   );
 }

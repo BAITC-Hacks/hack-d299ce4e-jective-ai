@@ -2,7 +2,8 @@ import { createServer } from 'node:http';
 import { loadEnvFile } from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { createApp } from './app.js';
-import { readServerConfig } from './config.js';
+import { readServerConfig, readSupabaseConfig } from './config.js';
+import { createSupabaseAuthService } from './modules/auth/service.js';
 
 try {
   try {
@@ -12,7 +13,8 @@ try {
   }
 
   const { host, port } = readServerConfig();
-  const server = createServer(createApp());
+  const authService = createSupabaseAuthService({ config: readSupabaseConfig() });
+  const server = createServer(createApp({ authService }));
   server.on('error', (error) => {
     console.error(`API failed to start: ${error.message}`);
     process.exitCode = 1;
