@@ -1,0 +1,14 @@
+{
+  "name": "task-readiness-platform",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "dev": "npm run dev --workspace @task-readiness/web",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "preview": "npm run preview --workspace @task-readiness/web"
+  }
+}
