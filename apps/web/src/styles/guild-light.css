@@ -147,7 +147,7 @@ body {
 .landing-v2 .topbar.is-scrolled {
   height: 68px;
   border-bottom-color: var(--border);
-  background: rgba(244, 252, 255, 0.84);
+  background: rgba(255, 255, 255, 0.84);
   box-shadow: 0 10px 28px rgba(34, 116, 164, 0.08);
   -webkit-backdrop-filter: blur(18px) saturate(145%);
   backdrop-filter: blur(18px) saturate(145%);
@@ -1192,20 +1192,18 @@ body {
   margin: 28px auto 24px;
   color: var(--text);
   font-family: var(--font-sans);
-  font-size: clamp(50px, 6.4vw, 78px);
+  font-size: clamp(48px, 5.6vw, 68px);
   font-weight: 600;
-  letter-spacing: -0.064em;
+  letter-spacing: -0.06em;
   line-height: 1.03;
 }
 
 .hero-copy h1 em {
-  color: var(--accent);
-  background: var(--gradient-accent-text);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: var(--transparent);
+  color: var(--text);
+  background: none;
+  -webkit-text-fill-color: currentColor;
   font-style: normal;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .hero-copy p {
@@ -1239,7 +1237,10 @@ body {
 }
 
 .product-section {
+  position: relative;
+  z-index: 2;
   max-width: 1240px;
+  margin-top: -56px;
   padding: 16px 30px 12px;
   scroll-margin-top: 100px;
 }
@@ -1602,6 +1603,8 @@ body {
 
   .hero-v2 {
     min-height: 590px;
+    margin-right: 14px;
+    margin-left: 14px;
     padding-top: 84px;
   }
 
@@ -1609,6 +1612,10 @@ body {
   .flow-v2 {
     padding-right: 20px;
     padding-left: 20px;
+  }
+
+  .product-section {
+    margin-top: -34px;
   }
 
   .flow-card {
@@ -1716,6 +1723,7 @@ body {
   }
 
   .product-section {
+    margin-top: -20px;
     padding-right: 14px;
     padding-left: 14px;
   }
