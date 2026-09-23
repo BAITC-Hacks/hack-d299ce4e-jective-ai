@@ -27,10 +27,22 @@ export function resolveAnalysisOperation(path) {
   return /^\/api\/ai\/task-analysis\/(questions|generate|score)$/.exec(path)?.[1];
 }
 
-export async function handleAnalysis(request, response, service, operation) {
+export async function handleAnalysis(
+  request,
+  response,
+  service,
+  operation,
+  resolveAttachments = async () => [],
+) {
   if (request.method !== 'POST')
     throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Only POST is supported.');
   const input = await readJson(request);
+  if (!input || typeof input !== 'object' || Array.isArray(input))
+    throw new HttpError(400, 'INVALID_INPUT', 'Некорректный запрос.');
+  // Never trust a client-supplied extraction; load owned attachment context under RLS.
+  delete input.attachedDocuments;
+  const documents = await resolveAttachments(request, input.attachmentIds);
+  if (documents.length) input.attachedDocuments = documents;
   const controller = new AbortController();
   const abort = () => {
     if (!response.writableEnded) controller.abort();

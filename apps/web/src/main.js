@@ -21,6 +21,15 @@ import { createProposalsRepository } from './features/proposals/repository.js';
 import { createProposalsController } from './features/proposals/controller.js';
 import { syncProposalForm } from './features/proposals/form.js';
 import './styles/auth.css';
+import './styles/attachments.css';
+import './styles/task-editor.css';
+import './styles/profile.css';
+import { createProfilesService } from './features/profiles/service.js';
+import { createProfilesController } from './features/profiles/controller.js';
+import { createProposalsService } from './features/proposals/service.js';
+import { createProposalsController } from './features/proposals/controller.js';
+import { createAttachmentsClient } from './features/attachments/service.js';
+import { createAttachmentsController } from './features/attachments/controller.js';
 
 const root = document.querySelector('#app');
 const config = readConfig();
@@ -31,7 +40,18 @@ const feedback = createFeedback({
   toastElement: document.querySelector('#toast'),
 });
 const motion = createMotion();
-const router = createRouter({ root, store, feedback, motion });
+let profiles;
+let proposals;
+const router = createRouter({
+  root,
+  store,
+  feedback,
+  motion,
+  onRoute: () => {
+    void profiles?.sync();
+    void proposals?.sync();
+  },
+});
 let supabase = null;
 try {
   supabase = createBrowserSupabase(config);
@@ -43,19 +63,15 @@ const authService = createAuthService({
   apiClient: createHttpClient({ baseUrl: config.apiBaseUrl }),
   redirectUrl: window.location.origin,
 });
-async function getAccessToken(expectedUserId) {
-  const session = await authService.getSession();
-  if (!session || (expectedUserId && session.user.id !== expectedUserId)) {
-    throw new Error('Сессия изменилась. Войдите в аккаунт и повторите попытку.');
-  }
-  return session.access_token;
-}
-const tasksRepository = createTasksRepository(config, undefined, { getAccessToken });
-const proposalsRepository = createProposalsRepository(config, undefined, { getAccessToken });
-const analysisService = createTaskAnalysisService({
-  getAccessToken: () => getAccessToken(store.getState().auth.user?.id),
+const getAccessToken = async () => (await authService.getSession())?.access_token;
+profiles = createProfilesController({ store, router, service: createProfilesService(supabase) });
+const attachments = createAttachmentsController({
+  store,
+  service: createAttachmentsClient({ getAccessToken }),
+  render: () => {
+    if (['#/create', '#/clarify', '#/editor'].includes(window.location.hash)) router.render();
+  },
 });
-let visibleUserId = null;
 const authController = createAuthController({
   store,
   service: authService,
@@ -75,11 +91,7 @@ const authController = createAuthController({
       feedback.toast(store.getState().auth.error);
   },
   onAuthenticated: ({ profile }) => {
-    void proposals.load();
-    if (profile.role === 'business') {
-      void workspace.load().then(() => workspace.flush());
-      void publication.loadMine();
-    }
+    if (profile.role === 'business') void attachments.load();
     if (
       !window.location.hash ||
       ['#/', '#/home', '#/login', '#/register'].includes(window.location.hash)
@@ -96,73 +108,38 @@ const authController = createAuthController({
 });
 const catalog = createCatalogController({
   store,
-  repository: tasksRepository,
+  repository: {
+    async list() {
+      if (!supabase) return createTasksRepository(config).list();
+      return createProposalsService(supabase).tasks();
+    },
+  },
   render: () => {
-    if (['#/catalog', '#/detail'].some((route) => window.location.hash.startsWith(route)))
+    if (
+      ['#/catalog', '#/detail', '#/dashboard', '#/my-tasks'].some((route) =>
+        window.location.hash.startsWith(route),
+      )
+    )
       router.render();
   },
 });
-const workspace = createWorkspaceController({
+proposals = createProposalsController({
   store,
-  repository: tasksRepository,
-  render: () => {
-    if (!['#/create', '#/clarify', '#/editor'].includes(window.location.hash)) return;
-    const state = store.getState();
-    const existing = root.querySelector('[data-workspace-feedback]');
-    if (state.workspace.loaded && existing && root.querySelector('.form-card, .editor-card')) {
-      existing.outerHTML = workspaceFeedback(state);
-      for (const button of root.querySelectorAll('[data-save-task]')) {
-        button.disabled = state.taskSave.status === 'saving' || state.workspace.status === 'error';
-      }
-      return;
-    }
-    const active = document.activeElement;
-    const id = root.contains(active) ? active.id : '';
-    const selection =
-      id && typeof active.selectionStart === 'number'
-        ? [active.selectionStart, active.selectionEnd]
-        : null;
-    router.render();
-    const next = id ? document.getElementById(id) : null;
-    next?.focus();
-    if (selection && next?.setSelectionRange) next.setSelectionRange(...selection);
-  },
-});
-const publication = createPublicationController({
-  store,
-  repository: tasksRepository,
-  catalog,
-  workspace,
   router,
   feedback,
+  service: createProposalsService(supabase),
+  reloadCatalog: () => catalog.load(),
 });
-const proposals = createProposalsController({
-  store,
-  repository: proposalsRepository,
-  router: {
-    navigate: router.navigate,
-    render: () => {
-      if (['#/proposals', '#/my-proposals'].includes(window.location.hash)) router.render();
-    },
-  },
-  feedback,
-  renderForm: syncProposalForm,
-});
-const refreshProposals = () => {
-  if (['#/proposals', '#/my-proposals'].includes(window.location.hash))
-    void proposals.load({ force: true });
-};
-window.addEventListener('hashchange', refreshProposals);
 const unbind = bindEvents({
   store,
   router,
   feedback,
   catalog,
   authController,
-  publication,
-  workspace,
-  service: analysisService,
+  attachments,
+  profiles,
   proposals,
+  getAccessToken,
 });
 
 router.start();
@@ -193,6 +170,9 @@ if (import.meta.hot) {
     window.removeEventListener('hashchange', refreshProposals);
     supabase?.auth.stopAutoRefresh();
     catalog.dispose();
+    attachments.dispose();
+    profiles.dispose();
+    proposals.dispose();
     unbind();
     router.dispose();
     motion.dispose();

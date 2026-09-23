@@ -88,7 +88,7 @@ test('editor offers real AI scoring instead of a fabricated readiness score', ()
   assert.ok(pages.editor(state).includes('data-action="score-task"'));
   assert.ok(!pages.editor(state).includes('0/15'));
   state.aiScoring = { status: 'loading' };
-  assert.ok(pages.editor(state).includes('OpenAI оценивает качество карточки'));
+  assert.ok(pages.editor(state).includes('ИИ оценивает качество карточки'));
   state.aiScoring = { status: 'error', error: '<script>error</script>' };
   assert.ok(pages.editor(state).includes('&lt;script&gt;error&lt;/script&gt;'));
   state.published = true;
