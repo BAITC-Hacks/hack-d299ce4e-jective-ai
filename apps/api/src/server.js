@@ -4,8 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createApp } from './app.js';
 import { readServerConfig, readSupabaseConfig } from './config.js';
 import { createSupabaseAuthService } from './modules/auth/service.js';
-import { createSupabaseTaskRepository } from './modules/tasks/repository.js';
-import { createSupabaseProposalRepository } from './modules/proposals/repository.js';
+import { createAttachmentsService } from './modules/attachments/service.js';
 
 try {
   try {
@@ -15,11 +14,9 @@ try {
   }
 
   const { host, port } = readServerConfig();
-  const config = readSupabaseConfig();
-  const authService = createSupabaseAuthService({ config });
-  const taskRepository = createSupabaseTaskRepository({ config });
-  const proposalRepository = createSupabaseProposalRepository({ config });
-  const server = createServer(createApp({ authService, taskRepository, proposalRepository }));
+  const authService = createSupabaseAuthService({ config: readSupabaseConfig() });
+  const attachmentsService = createAttachmentsService({ config: readSupabaseConfig() });
+  const server = createServer(createApp({ authService, attachmentsService }));
   server.on('error', (error) => {
     console.error(`API failed to start: ${error.message}`);
     process.exitCode = 1;

@@ -106,7 +106,7 @@ export function validateScoring(value) {
     throw new HttpError(
       502,
       'AI_INVALID_RESPONSE',
-      'OpenAI вернул некорректную оценку. Повторите AI-Scoring.',
+      'ИИ вернул некорректную оценку. Повторите AI-Scoring.',
     );
   const criteria = rubric.map(({ id, label, maxScore }) => ({
     id,

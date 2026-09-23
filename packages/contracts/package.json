@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.js",
-    "./fixtures": "./src/fixtures.js"
+    "./fixtures": "./src/fixtures.js",
+    "./attachments": "./src/attachments.js"
   },
   "scripts": {
     "test": "node --test"

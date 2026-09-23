@@ -1,0 +1,105 @@
+.editor-grid > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.editor-card .edit-row > div {
+  min-width: 0;
+}
+.editor-card .icon-btn {
+  flex-shrink: 0;
+}
+.ai-scoring {
+  max-height: calc(100dvh - 50px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+.ai-scoring p {
+  font-size: 14px;
+  line-height: 1.65;
+}
+.ai-scoring .hint {
+  font-size: 12px;
+}
+.scoring-summary {
+  margin: 16px 0;
+}
+.scoring-summary summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+.scoring-criteria {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 20px;
+}
+.scoring-criterion {
+  border: 1px solid #e5e9f1;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.scoring-criterion > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 12px;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 12px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.scoring-criterion > summary::-webkit-details-marker {
+  display: none;
+}
+.scoring-criterion > summary::after {
+  content: '+';
+  color: #5365df;
+  text-align: center;
+}
+.scoring-criterion[open] > summary::after {
+  content: '−';
+}
+.scoring-criterion > summary strong {
+  white-space: nowrap;
+  color: #5365df;
+  font-variant-numeric: tabular-nums;
+}
+.scoring-criterion > summary:hover,
+.scoring-criterion[open] > summary {
+  background: #f5f7fc;
+}
+.scoring-criterion > summary:focus-visible,
+.scoring-summary > summary:focus-visible {
+  outline: 2px solid #5365df;
+  outline-offset: -2px;
+}
+.scoring-feedback {
+  padding: 0 12px 12px;
+}
+.scoring-feedback p {
+  margin: 12px 0 0;
+  white-space: pre-wrap;
+}
+.scoring-recommendation {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f2f4ff;
+  font-size: 12px;
+}
+.scoring-recommendation p {
+  margin-top: 6px;
+}
+.editor-actions {
+  flex-wrap: wrap;
+}
+@media (max-width: 750px) {
+  .ai-scoring {
+    max-height: none;
+    overflow: visible;
+    padding: 20px;
+  }
+}

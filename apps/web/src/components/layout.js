@@ -9,13 +9,12 @@ export function navItems(role) {
         ['create', 'Создать задачу', 'plus'],
         ['proposals', 'Отклики', 'users'],
         ['catalog', 'Каталог', 'search'],
-        ['profile', 'Профиль', 'team'],
       ]
     : [
         ['student', 'Обзор', 'grid'],
         ['catalog', 'Каталог задач', 'search'],
         ['my-proposals', 'Мои отклики', 'list'],
-        ['profile', 'Профиль', 'team'],
+        ['team', 'Моя команда', 'users'],
       ];
 }
 export function layout(content, page, role = 'business', auth = null) {
@@ -44,16 +43,34 @@ export function layout(content, page, role = 'business', auth = null) {
         ${items.map(([r, t, i]) => /* HTML */ `<button data-route="${r}" class="${page === r ? 'active' : ''}">${I(i)} ${t}</button>`).join('')}
       </nav>
       <div class="side-foot">
-        <div class="account">
+        <button
+          class="account account-profile"
+          data-route="profile"
+          aria-label="Открыть мой профиль"
+        >
           <span class="avatar">${esc(initials)}</span>
           <div><strong>${esc(fullName)}</strong><small>${roleLabel}</small></div>
-        </div>
+        </button>
         ${signedIn ? `<button class="text-btn" data-action="logout" ${auth.busy ? 'disabled' : ''}>${I('logout', 15)} Выйти</button>` : '<button class="text-btn" data-route="login">Войти</button>'}
       </div>
     </aside>
     <main class="main">
       <header class="main-head">
         <span class="crumb">Рабочее пространство / <strong>${pageTitle(page)}</strong></span>
+        <div class="row">
+          <div class="header-account">
+            <strong>${esc(fullName)}</strong><small>${roleLabel}</small>
+          </div>
+          <button
+            class="user-dot"
+            data-route="profile"
+            title="${esc(fullName)}"
+            aria-label="Открыть мой профиль"
+          >
+            ${esc(initials)}
+          </button>
+          ${signedIn ? `<button class="text-btn header-logout" data-action="logout" ${auth.busy ? 'disabled' : ''}>Выйти</button>` : '<button class="text-btn" data-route="login">Войти</button>'}
+        </div>
       </header>
       <div class="content">${content}</div>
     </main>
@@ -84,6 +101,7 @@ export function pageTitle(r) {
       'my-proposals': 'Мои отклики',
       proposals: 'Отклики',
       profile: 'Профиль',
+      members: 'Участники',
     }[r] || 'AI Sana'
   );
 }
