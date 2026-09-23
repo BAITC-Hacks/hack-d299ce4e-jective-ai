@@ -21,7 +21,21 @@ export function landing() {
       <div class="hero-grid" aria-hidden="true"></div>
       <div class="hero-copy">
         <span class="eyebrow">Бизнес × студенты × AI</span>
-        <h1><span>Реальные бизнес-задачи.</span><br /><em>Реальный опыт студентов.</em></h1>
+        <h1 class="hero-type-title">
+          <span class="hero-type-a11y">Реальные бизнес-задачи. Реальный опыт студентов.</span>
+          <span
+            class="hero-type-line"
+            aria-hidden="true"
+            data-typewriter-text="Реальные бизнес-задачи."
+            >Реальные бизнес-задачи.</span
+          >
+          <em
+            class="hero-type-line"
+            aria-hidden="true"
+            data-typewriter-text="Реальный опыт студентов."
+            >Реальный опыт студентов.</em
+          >
+        </h1>
         <p>
           AI Sana помогает бизнесу качественно формулировать задачи,<br class="desktop-break" />
           а студенческим командам — находить реальные проекты.

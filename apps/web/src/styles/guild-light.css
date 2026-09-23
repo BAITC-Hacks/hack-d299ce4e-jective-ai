@@ -93,7 +93,14 @@ body {
   min-width: 320px;
   background:
     radial-gradient(54rem circle at 88% -8%, rgba(207, 245, 251, 0.46), transparent 62%),
+    radial-gradient(46rem circle at -12% 108%, rgba(220, 243, 255, 0.5), transparent 60%),
     var(--bg-subtle);
+  background-position:
+    88% -8%,
+    -12% 108%,
+    0 0;
+  background-repeat: no-repeat;
+  animation: sky-wash-drift 26s ease-in-out infinite alternate;
   color: var(--text);
   font-family: var(--font-sans);
   font-size: 16px;
@@ -1071,6 +1078,7 @@ body {
   -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.78), transparent 82%);
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.78), transparent 82%);
   pointer-events: none;
+  animation: landing-grid-drift 28s ease-in-out infinite alternate;
 }
 
 .landing-v2 > .announcement,
@@ -1157,6 +1165,27 @@ body {
   animation: hero-orb-drift 14s ease-in-out infinite alternate;
 }
 
+.hero-v2::after {
+  position: absolute;
+  inset: -26%;
+  z-index: -1;
+  background:
+    radial-gradient(
+      36rem circle at var(--pointer-x) var(--pointer-y),
+      rgba(255, 255, 255, 0.7),
+      transparent 45%
+    ),
+    radial-gradient(28rem circle at 16% 72%, rgba(189, 234, 255, 0.54), transparent 56%),
+    radial-gradient(25rem circle at 86% 66%, rgba(255, 255, 255, 0.52), transparent 58%);
+  content: '';
+  filter: blur(2px);
+  opacity: 0.72;
+  pointer-events: none;
+  transform: translate3d(0, 0, 0) scale(1.02);
+  will-change: transform;
+  animation: hero-cloud-float 22s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+}
+
 .hero-grid {
   inset: 3% 0 -5%;
   opacity: 0.38;
@@ -1204,6 +1233,33 @@ body {
   -webkit-text-fill-color: currentColor;
   font-style: normal;
   font-weight: 600;
+}
+
+.hero-type-a11y {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.hero-type-line {
+  display: block;
+  min-height: 1.03em;
+}
+
+.hero-type-line.is-typing::after {
+  display: inline-block;
+  width: 0.07em;
+  height: 0.86em;
+  margin-left: 0.1em;
+  background: currentColor;
+  content: '';
+  vertical-align: -0.06em;
+  animation: type-caret-blink 0.78s steps(1, end) infinite;
 }
 
 .hero-copy p {
@@ -1503,6 +1559,36 @@ body {
   }
 }
 
+@keyframes sky-wash-drift {
+  from {
+    background-position:
+      88% -8%,
+      -12% 108%,
+      0 0;
+  }
+
+  to {
+    background-position:
+      102% 2%,
+      2% 96%,
+      0 0;
+  }
+}
+
+@keyframes landing-grid-drift {
+  from {
+    background-position:
+      0 0,
+      0 0;
+  }
+
+  to {
+    background-position:
+      28px 20px,
+      -20px 26px;
+  }
+}
+
 @keyframes hero-orb-drift {
   from {
     transform: translateX(-54%) translateY(0) scale(1);
@@ -1510,6 +1596,22 @@ body {
 
   to {
     transform: translateX(-46%) translateY(18px) scale(1.05);
+  }
+}
+
+@keyframes hero-cloud-float {
+  from {
+    transform: translate3d(-1.5%, -1%, 0) scale(1.02);
+  }
+
+  to {
+    transform: translate3d(1.8%, 1.4%, 0) scale(1.07);
+  }
+}
+
+@keyframes type-caret-blink {
+  50% {
+    opacity: 0;
   }
 }
 
@@ -1606,6 +1708,12 @@ body {
     margin-right: 14px;
     margin-left: 14px;
     padding-top: 84px;
+  }
+
+  .hero-v2::after {
+    inset: -42%;
+    opacity: 0.56;
+    animation-duration: 30s;
   }
 
   .product-section,

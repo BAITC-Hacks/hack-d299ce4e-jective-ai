@@ -104,6 +104,69 @@ export function createMotion() {
     queuePointerUpdate();
   }
 
+  function setupHeroTypewriter(landing, reduce) {
+    const title = landing.querySelector('.hero-type-title');
+    const lines = [...landing.querySelectorAll('.hero-type-line')];
+    if (!title || !lines.length || reduce || typeof window.requestAnimationFrame !== 'function')
+      return;
+
+    const text = lines.map((line) => line.dataset.typewriterText || line.textContent.trim());
+    if (!text.every(Boolean)) return;
+
+    const characters = text.map((line) => Array.from(line));
+    lines.forEach((line) => {
+      line.textContent = '';
+      line.classList.remove('is-typing');
+    });
+
+    let activeLine = 0;
+    let character = 0;
+    let lastCharacterAt = 0;
+    let pauseUntil = 0;
+    let characterDelay = 34;
+
+    const type = (now) => {
+      if (!pauseUntil) pauseUntil = now + 260;
+      if (now < pauseUntil) {
+        schedule(type);
+        return;
+      }
+
+      if (lastCharacterAt && now - lastCharacterAt < characterDelay) {
+        schedule(type);
+        return;
+      }
+
+      lastCharacterAt = now;
+      const line = lines[activeLine];
+      const lineCharacters = characters[activeLine];
+      line.classList.add('is-typing');
+      character += 1;
+      line.textContent = lineCharacters.slice(0, character).join('');
+      const typedCharacter = lineCharacters[character - 1];
+      characterDelay = /[.!?]/.test(typedCharacter) ? 160 : typedCharacter === ' ' ? 50 : 34;
+
+      if (character < lineCharacters.length) {
+        schedule(type);
+        return;
+      }
+
+      line.classList.remove('is-typing');
+      activeLine += 1;
+      character = 0;
+      lastCharacterAt = 0;
+      pauseUntil = now + 240;
+
+      if (activeLine >= lines.length) {
+        return;
+      }
+
+      schedule(type);
+    };
+
+    schedule(type);
+  }
+
   function setupLandingMotion(root, reduce) {
     const landing = root.querySelector('.landing-v2');
     if (!landing) return;
@@ -116,6 +179,7 @@ export function createMotion() {
     }
 
     setupPointerMotion(landing, reduce);
+    setupHeroTypewriter(landing, reduce);
 
     landing.querySelectorAll('section:not(.hero-v2), .landing-footer').forEach((element) => {
       element.classList.add('reveal-on-scroll');
