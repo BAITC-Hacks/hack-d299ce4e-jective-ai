@@ -2,7 +2,7 @@ import { btn } from '../../components/ui.js';
 import { esc } from '../../shared/html.js';
 import { level } from './model.js';
 
-export function createTaskActions({ store, router, feedback, catalog }) {
+export function createTaskActions({ store, router, feedback, catalog, scoring }) {
   const { modal, toast, closeModal, success } = feedback;
   let editingField = 'Критерии успеха';
 
@@ -26,11 +26,6 @@ ${improve ? '' : esc(store.getState().fields[field])}</textarea>
   return {
     editField,
     actions: {
-      analyze() {
-        const description = document.querySelector('#description')?.value || '';
-        store.update((state) => ({ ...state, description }));
-        router.navigate('clarify');
-      },
       'save-draft': () => toast('Черновик сохранён в текущей демосессии'),
       publish() {
         modal(
@@ -49,7 +44,7 @@ ${improve ? '' : esc(store.getState().fields[field])}</textarea>
         const { rating } = store.getState();
         success(
           'Задача опубликована в деморежиме',
-          `${rating}/100 · ${level(rating)[0]}`,
+          rating === null ? 'Оценка AI ещё не готова' : `${rating}/100 · ${level(rating)[0]}`,
           'Посмотреть в каталоге',
           'catalog',
         );
@@ -58,15 +53,14 @@ ${improve ? '' : esc(store.getState().fields[field])}</textarea>
       'save-edit'() {
         const value = document.querySelector('#edit-value')?.value.trim();
         if (!value) return toast('Заполните поле перед сохранением');
-        const improve = editingField === 'Критерии успеха' && store.getState().rating < 90;
         store.update((state) => ({
           ...state,
           fields: { ...state.fields, [editingField]: value },
-          rating: improve ? 91 : state.rating,
         }));
         closeModal();
         router.render();
-        toast(improve ? 'Рейтинг повышен на 15 баллов' : 'Изменения сохранены');
+        toast('Изменения сохранены');
+        void scoring.score();
       },
       'save-task'() {
         store.update((state) => ({
