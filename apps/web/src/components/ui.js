@@ -35,7 +35,19 @@ export const I = (name, size = 18) =>
     ${icons[name] || icons.grid}
   </svg>`;
 export const brand = () =>
-  /* HTML */ `<a href="#/" class="brand"><span class="brand-mark">a</span><span>AI Sana</span></a>`;
+  /* HTML */ `<a href="#/" class="brand" aria-label="AI Sana — на главную">
+    <span class="brand-mark" aria-hidden="true">
+      <svg class="brand-logo" viewBox="0 0 32 32" fill="none" focusable="false">
+        <path d="m8.25 24.5 6.74-16.96a1.08 1.08 0 0 1 2.02 0l6.74 16.96" />
+        <path d="M11.18 18.1h9.64" />
+        <path
+          class="brand-logo-spark"
+          d="m23.35 5.35.48 1.62 1.62.48-1.62.48-.48 1.62-.48-1.62-1.62-.48 1.62-.48.48-1.62Z"
+        />
+      </svg>
+    </span>
+    <span>AI Sana</span>
+  </a>`;
 // label and extra accept trusted HTML from application templates only.
 export const btn = (label, action, kind = 'primary', extra = '') =>
   /* HTML */ `<button class="btn ${esc(kind)}" data-action="${esc(action)}" ${extra}>

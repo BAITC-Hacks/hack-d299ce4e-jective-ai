@@ -2,6 +2,11 @@ export function createMotion() {
   let observer;
   let topbar;
   let onScroll;
+  let pointerLanding;
+  let onPointerMove;
+  let onPointerLeave;
+  let pointerFrame;
+  let pointerPosition;
   const frames = new Set();
 
   function dispose() {
@@ -11,6 +16,23 @@ export function createMotion() {
     onScroll = undefined;
     topbar?.classList.remove('is-scrolled');
     topbar = undefined;
+
+    if (pointerLanding) {
+      if (onPointerMove) pointerLanding.removeEventListener('pointermove', onPointerMove);
+      if (onPointerLeave) pointerLanding.removeEventListener('pointerleave', onPointerLeave);
+      pointerLanding.style.removeProperty('--pointer-x');
+      pointerLanding.style.removeProperty('--pointer-y');
+    }
+    pointerLanding = undefined;
+    onPointerMove = undefined;
+    onPointerLeave = undefined;
+    pointerPosition = undefined;
+    if (pointerFrame !== undefined) {
+      cancelAnimationFrame(pointerFrame);
+      frames.delete(pointerFrame);
+      pointerFrame = undefined;
+    }
+
     for (const frame of frames) cancelAnimationFrame(frame);
     frames.clear();
   }
@@ -23,7 +45,66 @@ export function createMotion() {
     frames.add(frame);
   }
 
-  function setupLandingMotion(root) {
+  function setupPointerMotion(landing, reduce) {
+    const canTrackPointer =
+      !reduce &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
+      'PointerEvent' in window;
+    if (!canTrackPointer) return;
+
+    pointerLanding = landing;
+
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+    const queuePointerUpdate = () => {
+      if (pointerFrame !== undefined) return;
+
+      const frame = requestAnimationFrame(() => {
+        frames.delete(frame);
+        if (pointerFrame === frame) pointerFrame = undefined;
+        if (!pointerLanding) return;
+
+        if (!pointerPosition) {
+          pointerLanding.style.setProperty('--pointer-x', '50%');
+          pointerLanding.style.setProperty('--pointer-y', '16%');
+          return;
+        }
+
+        const rect = pointerLanding.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+
+        const x = clamp(((pointerPosition.x - rect.left) / rect.width) * 100, 0, 100);
+        const y = clamp(((pointerPosition.y - rect.top) / rect.height) * 100, 0, 100);
+        pointerLanding.style.setProperty('--pointer-x', `${x.toFixed(2)}%`);
+        pointerLanding.style.setProperty('--pointer-y', `${y.toFixed(2)}%`);
+      });
+
+      pointerFrame = frame;
+      frames.add(frame);
+    };
+
+    onPointerMove = (event) => {
+      if (
+        event.pointerType === 'touch' ||
+        !Number.isFinite(event.clientX) ||
+        !Number.isFinite(event.clientY)
+      ) {
+        return;
+      }
+      pointerPosition = { x: event.clientX, y: event.clientY };
+      queuePointerUpdate();
+    };
+    onPointerLeave = () => {
+      pointerPosition = undefined;
+      queuePointerUpdate();
+    };
+
+    pointerLanding.addEventListener('pointermove', onPointerMove, { passive: true });
+    pointerLanding.addEventListener('pointerleave', onPointerLeave, { passive: true });
+    queuePointerUpdate();
+  }
+
+  function setupLandingMotion(root, reduce) {
     const landing = root.querySelector('.landing-v2');
     if (!landing) return;
 
@@ -33,6 +114,8 @@ export function createMotion() {
       onScroll();
       window.addEventListener('scroll', onScroll, { passive: true });
     }
+
+    setupPointerMotion(landing, reduce);
 
     landing.querySelectorAll('section:not(.hero-v2), .landing-footer').forEach((element) => {
       element.classList.add('reveal-on-scroll');
@@ -57,8 +140,10 @@ export function createMotion() {
 
   function init(root) {
     dispose();
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    setupLandingMotion(root);
+    const reduce =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setupLandingMotion(root, reduce);
     setupWorkspaceMotion(root);
 
     const revealElements = new Set([
