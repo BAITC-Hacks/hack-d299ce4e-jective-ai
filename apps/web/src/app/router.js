@@ -34,6 +34,8 @@ const routes = {
 
 export function createRouter({ root, store, feedback, motion }) {
   function render({ scrollToTop = false } = {}) {
+    // Visual listeners belong to the current DOM, including auth-loading screens.
+    motion.dispose?.();
     if (isAuthCallbackHash(window.location.hash)) {
       root.innerHTML = '<div class="auth-loading" role="status">Подтверждаем вход…</div>';
       return;

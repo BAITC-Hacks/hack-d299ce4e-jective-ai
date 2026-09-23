@@ -20,7 +20,6 @@ import { syncAuthForm } from './features/auth/actions.js';
 import { createProposalsRepository } from './features/proposals/repository.js';
 import { createProposalsController } from './features/proposals/controller.js';
 import { syncProposalForm } from './features/proposals/form.js';
-import './styles/auth.css';
 
 const root = document.querySelector('#app');
 const config = readConfig();

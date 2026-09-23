@@ -2,7 +2,7 @@
   min-height: 100vh;
   display: grid;
   place-items: center;
-  color: #5363d2;
+  color: var(--color-accent-hover);
   font-size: 16px;
 }
 
@@ -21,15 +21,15 @@
 }
 
 .auth-error {
-  color: #9b253a;
-  background: #fff3f4;
-  border-color: #f3ccd3;
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+  border-color: var(--color-danger-border);
 }
 
 .auth-notice {
-  color: #354987;
-  background: #f0f3ff;
-  border-color: #d8e0ff;
+  color: var(--color-accent-hover);
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-border);
 }
 
 .auth-form button:disabled,
@@ -74,7 +74,7 @@
 }
 
 .header-account small {
-  color: #727e91;
+  color: var(--color-muted);
 }
 
 .profile-details {
@@ -84,7 +84,7 @@
 }
 
 .profile-details dt {
-  color: #727e91;
+  color: var(--color-muted);
   font-size: 13px;
   margin-bottom: 6px;
 }

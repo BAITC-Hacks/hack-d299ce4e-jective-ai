@@ -7,7 +7,7 @@ export function student(state) {
   return layout(
     /* HTML */ `<div
         class="card"
-        style="background:linear-gradient(120deg,#eef1ff,#fff);padding:32px"
+        style="background:linear-gradient(120deg,var(--color-accent-soft),var(--color-white));padding:32px"
       >
         <span class="eyebrow">Для студенческих команд</span>
         <h1 class="page-title">Найдите следующую задачу для своей команды</h1>
