@@ -15,6 +15,7 @@ import { createAuthController } from './features/auth/controller.js';
 import { syncAuthForm } from './features/auth/actions.js';
 import './styles/auth.css';
 import './styles/attachments.css';
+import './styles/task-editor.css';
 import { createAttachmentsClient } from './features/attachments/service.js';
 import { createAttachmentsController } from './features/attachments/controller.js';
 

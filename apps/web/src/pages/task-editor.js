@@ -69,11 +69,15 @@ function rating(state) {
     content = `<p role="alert">${esc(scoring.error)}</p>${btn('Повторить AI-Scoring', 'score-task', 'ghost small')}`;
   } else if (scoring?.status === 'ready') {
     const result = scoring.result;
-    content = `<div class="score-large">${result.score}<small>/100</small></div>${progress(result.score)}<p>${esc(result.summary)}</p><div class="rating-list">${result.criteria.map((criterion) => `<section class="info-section"><div class="rating-line"><strong>${esc(criterion.label)}</strong><strong>${criterion.score}/${criterion.maxScore}</strong></div><p>${esc(criterion.explanation)}</p><p class="hint">Рекомендация: ${esc(criterion.recommendation)}</p></section>`).join('')}</div>${btn('Пересчитать оценку', 'score-task', 'ghost small')}`;
+    const summary =
+      result.summary.length > 220
+        ? `<details class="scoring-summary"><summary>Общий вывод AI</summary><p>${esc(result.summary)}</p></details>`
+        : `<p class="scoring-summary">${esc(result.summary)}</p>`;
+    content = `<div class="score-large">${result.score}<small>/100</small></div>${progress(result.score)}${summary}<p class="hint">Нажмите на критерий, чтобы увидеть пояснение и рекомендацию.</p><div class="scoring-criteria">${result.criteria.map((criterion) => `<details class="scoring-criterion"><summary><span>${esc(criterion.label)}</span><strong>${criterion.score}/${criterion.maxScore}</strong></summary><div class="scoring-feedback"><p>${esc(criterion.explanation)}</p><div class="scoring-recommendation"><strong>Как улучшить</strong><p>${esc(criterion.recommendation)}</p></div></div></details>`).join('')}</div>${btn('Пересчитать оценку', 'score-task', 'ghost small')}`;
   } else {
     content = `<p>Оцените конкретность, полноту и проверяемость задачи.</p>${btn('Оценить с AI', 'score-task', 'ghost small')}`;
   }
-  return `<aside class="card rating"><h3>AI-Scoring</h3>${content}<p class="hint">Оценка качества постановки задачи, а не проверка достоверности фактов. После редактирования оценка пересчитывается через OpenAI.</p></aside>`;
+  return `<aside class="card rating ai-scoring"><h3>AI-Scoring</h3>${content}<p class="hint">Оценка качества постановки задачи, а не проверка достоверности фактов. После редактирования оценка пересчитывается через OpenAI.</p></aside>`;
 }
 
 export function editor(state) {

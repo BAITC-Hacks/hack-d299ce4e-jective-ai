@@ -21,7 +21,6 @@ export function landing(state) {
     <section class="hero-v2">
       <div class="hero-grid" aria-hidden="true"></div>
       <div class="hero-copy">
-        <span class="eyebrow">Бизнес × студенты × AI</span>
         <h1><span>Реальные бизнес-задачи.</span><br /><em>Реальный опыт студентов.</em></h1>
         <p>
           AI Sana помогает бизнесу качественно формулировать задачи,<br class="desktop-break" />
@@ -88,11 +87,6 @@ export function landing(state) {
           </div>
         </div>
       </div>
-    </section>
-    <section class="landing-stats reveal">
-      <div><strong data-count="48">48</strong><span>Активных задач</span></div>
-      <div><strong data-count="24">24</strong><span>Команды</span></div>
-      <div><strong data-count="17">17</strong><span>Выбранных решений</span></div>
     </section>
     <section class="flow-v2" id="how">
       <div class="flow-title reveal">
