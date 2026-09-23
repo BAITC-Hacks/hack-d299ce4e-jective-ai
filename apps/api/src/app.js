@@ -28,6 +28,7 @@ function sendJson(request, response, status, payload, headers = {}) {
  */
 export function createApp({
   taskRepository = createDemoTaskRepository(),
+  authService = createSupabaseAuthService(),
   logger = console,
   analysisService = createTaskAnalysisService(),
 } = {}) {
