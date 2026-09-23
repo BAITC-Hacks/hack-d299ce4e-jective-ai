@@ -8,7 +8,7 @@ export default function Layout() {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-5">
           <Link to="/" className="flex items-center gap-3 font-semibold tracking-tight">
             <span className="rounded-xl bg-brand-700 p-2 text-white"><Layers3 size={22} aria-hidden="true" /></span>
-            Task Readiness
+            Task achievment AI SANA
           </Link>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">MVP · Итерация 1</span>
         </div>
