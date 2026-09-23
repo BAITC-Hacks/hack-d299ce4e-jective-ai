@@ -52,5 +52,6 @@ export function proposals(state) {
       </div>`,
     'proposals',
     'business',
+    state.auth,
   );
 }
