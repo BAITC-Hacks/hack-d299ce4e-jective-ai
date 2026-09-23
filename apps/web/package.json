@@ -10,7 +10,8 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@ai-sana/contracts": "*"
+    "@ai-sana/contracts": "*",
+    "@supabase/supabase-js": "^2.117.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

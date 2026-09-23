@@ -38,6 +38,7 @@ ${esc(state.description)}</textarea>
     </div>`,
     'create',
     'business',
+    state.auth,
   );
 }
 
@@ -83,6 +84,7 @@ ${esc(state.answers[i] || '')}</textarea>
     </div>`,
     'clarify',
     'business',
+    state.auth,
   );
 }
 
@@ -148,5 +150,6 @@ export function editor(state) {
       )}</div>${rating(state)}</div><div class="editor-actions">${btn('Сохранить черновик', 'save-draft', 'ghost')}${btn('Опубликовать задачу ' + I('arrow', 16), 'publish')}</div>`,
     'editor',
     'business',
+    state.auth,
   );
 }

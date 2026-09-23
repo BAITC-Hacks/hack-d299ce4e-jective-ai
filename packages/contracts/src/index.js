@@ -14,6 +14,7 @@
 export const API_PATHS = Object.freeze({
   health: '/api/health',
   tasks: '/api/tasks',
+  authMe: '/api/auth/me',
 });
 
 const isText = (value) => typeof value === 'string' && value.trim().length > 0;
@@ -63,4 +64,38 @@ export function validateTaskList(value) {
     throw new TypeError('Task list must be an array.');
   }
   return value.map(validateTask);
+}
+
+const isUuid = (value) =>
+  typeof value === 'string' &&
+  /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(value);
+
+/** Public profile DTO from the registration schema; credentials never belong here. */
+export function validateProfile(value) {
+  if (!value || !isUuid(value.id)) throw new TypeError('Profile.id must be a UUID.');
+  if (!isText(value.full_name) || value.full_name.trim().length > 120) {
+    throw new TypeError('Profile.full_name must contain between 1 and 120 characters.');
+  }
+  if (!['business', 'student'].includes(value.role)) throw new TypeError('Invalid profile role.');
+  for (const field of ['created_at', 'updated_at']) {
+    if (typeof value[field] !== 'string' || !Number.isFinite(Date.parse(value[field]))) {
+      throw new TypeError(`Profile.${field} must be a timestamp.`);
+    }
+  }
+  return {
+    id: value.id,
+    full_name: value.full_name.trim(),
+    role: value.role,
+    created_at: value.created_at,
+    updated_at: value.updated_at,
+  };
+}
+
+export function validateAuthUserResponse(value) {
+  if (!value || !value.user || !isUuid(value.user.id) || !isText(value.user.email)) {
+    throw new TypeError('Invalid authenticated user.');
+  }
+  const profile = validateProfile(value.profile);
+  if (profile.id !== value.user.id) throw new TypeError('User and profile IDs must match.');
+  return { user: { id: value.user.id, email: value.user.email }, profile };
 }

@@ -19,6 +19,10 @@ function catalogStatus(state) {
   return '';
 }
 
+function catalogRole(state) {
+  return state.auth?.status === 'authenticated' ? state.auth.profile?.role || 'student' : 'student';
+}
+
 function catalogCard(task) {
   return /* HTML */ `<article class="card catalog-card">
     <div class="row" style="justify-content:space-between">
@@ -84,22 +88,25 @@ export function catalog(state) {
         ${status || list.map(catalogCard).join('') || '<div class="card empty" style="grid-column:1/-1">По вашему запросу задач не найдено. Попробуйте другие фильтры.</div>'}
       </div>`,
     'catalog',
-    'student',
+    catalogRole(state),
+    state.auth,
   );
 }
 
 export function detail(state) {
+  const role = catalogRole(state);
   const task = getTask(state);
   const backLink = '<button class="back-link" data-route="catalog">← К каталогу задач</button>';
   const isPublished = state.published && Number(state.currentTaskId) === 5;
   const status = isPublished ? '' : catalogStatus(state);
 
-  if (status) return layout(`${backLink}${status}`, 'detail', 'student');
+  if (status) return layout(`${backLink}${status}`, 'detail', role, state.auth);
   if (!task) {
     return layout(
       `${backLink}<div class="card empty"><h1>Задача не найдена</h1><p>Возможно, она была удалена. Выберите другую задачу в каталоге.</p></div>`,
       'detail',
-      'student',
+      role,
+      state.auth,
     );
   }
 
@@ -138,6 +145,7 @@ export function detail(state) {
     </aside>
   </div>`,
     'detail',
-    'student',
+    role,
+    state.auth,
   );
 }
