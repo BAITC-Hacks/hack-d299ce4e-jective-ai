@@ -81,13 +81,15 @@ test('external task text and user-entered fields are escaped at HTML boundaries'
   }
 });
 
-test('readiness rows reflect state changes and locally published tasks remain viewable', () => {
+test('editor offers real AI scoring instead of a fabricated readiness score', () => {
   const state = readyState();
-  assert.ok(pages.editor(state).includes('0/15'));
-  state.rating = 91;
-  const improved = pages.editor(state);
-  assert.ok(!improved.includes('0/15'));
-  assert.ok(improved.includes('Отличная готовность'));
+  assert.ok(pages.editor(state).includes('AI-Scoring'));
+  assert.ok(pages.editor(state).includes('data-action="score-task"'));
+  assert.ok(!pages.editor(state).includes('0/15'));
+  state.aiScoring = { status: 'loading' };
+  assert.ok(pages.editor(state).includes('OpenAI оценивает качество карточки'));
+  state.aiScoring = { status: 'error', error: '<script>error</script>' };
+  assert.ok(pages.editor(state).includes('&lt;script&gt;error&lt;/script&gt;'));
   state.published = true;
   state.currentTaskId = 5;
   state.catalog.status = 'error';

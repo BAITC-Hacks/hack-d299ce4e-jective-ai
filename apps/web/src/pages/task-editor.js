@@ -1,6 +1,6 @@
 import { esc } from '../shared/html.js';
-import { level } from '../features/tasks/model.js';
 import { I, btn, badge, tags, progress } from '../components/ui.js';
+import { fieldLabels, initialAnalysis } from '../services/ai/types.js';
 import { layout } from '../components/layout.js';
 
 const stepper = (n) =>
@@ -8,121 +8,73 @@ const stepper = (n) =>
     ${['Описание', 'Уточнение', 'Карточка', 'Публикация'].map((s, i) => `${i ? '<span class="step-line"></span>' : ''}<span class="step-item ${i + 1 === n ? 'current' : i + 1 < n ? 'done' : ''}"><i>${i + 1 < n ? '✓' : i + 1}</i>${s}</span>`).join('')}
   </div>`;
 
+function analysisContent(state, flow) {
+  if (flow.step === 'analyzing' || flow.step === 'generating') {
+    return `<div class="card form-card" role="status" aria-live="polite" aria-busy="true"><p>${flow.step === 'analyzing' ? 'AI анализирует вашу задачу...' : 'AI формирует карточку задачи...'}</p></div>`;
+  }
+  if (flow.step === 'error') {
+    return `<div class="card form-card"><div role="alert"><h3>Не удалось выполнить AI-анализ.</h3><p>${esc(flow.error)}</p></div><div class="actions">${btn('Попробовать снова', 'analysis-retry')}${btn(flow.retry === 'generating' ? 'Вернуться к вопросам' : 'Изменить описание', flow.retry === 'generating' ? 'analysis-questions' : 'analysis-description', 'ghost')}</div></div>`;
+  }
+  if (flow.step === 'questions') {
+    const q = flow.questions[flow.currentQuestion];
+    if (!q) return '';
+    return `<div class="card form-card"><h2>AI уточняет задачу</h2><p>Известно: ${esc(flow.knownInformation.join(' '))}</p><p class="hint">Требует уточнения: ${esc(flow.missingInformation.map((key) => fieldLabels[key] || key).join(', '))}</p><p role="status">Вопрос ${flow.currentQuestion + 1} из ${flow.questions.length}</p>${progress(((flow.currentQuestion + 1) / flow.questions.length) * 100)}<div class="field"><label for="analysis-answer">${esc(q.text)}</label><textarea id="analysis-answer" class="textarea" data-analysis-answer="${esc(q.id)}" placeholder="Напишите ответ или оставьте пустым, если информация неизвестна">${esc(flow.answers[q.id] || '')}</textarea></div><p class="hint">Почему спрашиваем: ${esc(q.reason)}</p><div class="actions" style="justify-content:space-between">${btn('Назад', flow.currentQuestion ? 'analysis-back' : 'analysis-description', 'ghost')}${btn(flow.currentQuestion + 1 === flow.questions.length ? 'Сформировать карточку' : 'Далее', 'analysis-next')}</div></div>`;
+  }
+  if (flow.step === 'result') {
+    return `<div class="card form-card"><h2>✓ AI-анализ завершён</h2><p class="hint">Проверьте и при необходимости отредактируйте поля. Пустое поле означает, что информация не указана.</p>${Object.entries(
+      fieldLabels,
+    )
+      .map(
+        ([key, label]) =>
+          `<div class="field"><label for="analysis-${key}">${label}</label><textarea id="analysis-${key}" class="textarea" data-analysis-field="${key}" placeholder="Не указано">${esc(flow.analysisResult[key])}</textarea></div>`,
+      )
+      .join(
+        '',
+      )}<div id="analysis-missing" aria-live="polite">${missingFeedback(flow.analysisResult)}</div><div class="actions">${btn('Вернуться к вопросам', 'analysis-questions', 'ghost')}${btn('Принять результат', 'analysis-accept')}</div></div>`;
+  }
+  return `<div class="card form-card"><div class="field"><label for="description">Опишите задачу или проблему</label><textarea id="description" class="textarea" placeholder="Мы образовательный центр и хотим понять, почему часть учеников бросает обучение.">${esc(state.description)}</textarea></div><p class="hint">Начните с нескольких предложений. Затем уточним недостающую информацию.</p><div class="actions" style="justify-content:flex-end">${btn(I('spark', 16) + ' Проанализировать с AI', 'analyze')}</div></div>`;
+}
+
+export function missingFeedback(result) {
+  return result.missingInformation.length
+    ? `<p>Что ещё желательно уточнить:</p><ul>${result.missingInformation.map((key) => `<li>⚠ ${esc(fieldLabels[key])}: не указано</li>`).join('')}</ul>`
+    : '<p>Все поля заполнены. Проверьте достоверность информации.</p>';
+}
+
 export function create(state) {
+  const flow = state.taskAnalysis || initialAnalysis();
+  const step = ['questions', 'generating'].includes(flow.step) ? 2 : flow.step === 'result' ? 3 : 1;
   return layout(
-    /* HTML */ `<div class="narrow">
-      ${stepper(1)}<span class="eyebrow">Шаг 1 из 4</span>
-      <h1 class="page-title">Опишите вашу бизнес-задачу</h1>
-      <p class="sub">
-        Не беспокойтесь о структуре. Опишите проблему своими словами — AI поможет оформить её
-        правильно.
-      </p>
-      <div class="card form-card">
-        <div class="field">
-          <label for="description">Что вы хотите решить?</label
-          ><textarea
-            id="description"
-            class="textarea"
-            placeholder="У нас высокий отток клиентов. Хотим понять причины и научиться определять клиентов с высоким риском ухода..."
-          >
-${esc(state.description)}</textarea>
-        </div>
-        <p class="hint">
-          Можно начать с нескольких предложений. Следующие экраны демонстрируют, как задача
-          оформляется после уточнения.
-        </p>
-        <div class="actions" style="justify-content:flex-end">
-          ${btn(I('spark', 16) + ' Проанализировать с AI', 'analyze')}
-        </div>
-      </div>
-    </div>`,
+    `<div class="narrow">${stepper(step)}<span class="eyebrow">Шаг ${step} из 4</span><h1 class="page-title">Опишите вашу бизнес-задачу</h1><p class="sub">Опишите проблему своими словами — AI поможет оформить её правильно.</p><p class="hint">OpenAI анализирует описание и ответы. Проверьте результат перед публикацией.</p>${analysisContent(state, flow)}</div>`,
     'create',
     'business',
   );
 }
 
-const questions = [
-  ['Какие данные о клиентах доступны?', '+20 баллов'],
-  ['Какие именно клиенты сталкиваются с этой проблемой?', '+10 баллов'],
-  ['Какой результат вы ожидаете получить?', '+10 баллов'],
-  ['Есть ли технические или временные ограничения?', '+10 баллов'],
-];
-
+// Preserve the existing route without a second clarification form.
 export function clarify(state) {
-  return layout(
-    /* HTML */ `<div class="narrow">
-      ${stepper(2)}<span class="eyebrow">Шаг 2 из 4</span>
-      <h1 class="page-title">Уточним несколько деталей</h1>
-      <p class="sub">
-        Чтобы задача была понятна студенческим командам, ответьте на несколько вопросов.
-      </p>
-      <div class="card" style="padding:23px;margin-top:25px">
-        <div class="row" style="justify-content:space-between;margin-bottom:13px">
-          <strong>Текущая готовность</strong><span class="score">32/100</span>
-        </div>
-        ${progress(32)}
-      </div>
-      <div class="card" style="margin-top:17px">
-        ${questions
-          .map(
-            ([q, b], i) =>
-              /* HTML */ `<div class="question">
-                <div class="question-head">
-                  <h3>${q}</h3>
-                  ${badge(b, 'soft')}
-                </div>
-                <textarea class="textarea" data-answer="${i}" placeholder="Напишите ответ...">
-${esc(state.answers[i] || '')}</textarea>
-              </div>`,
-          )
-          .join('')}
-      </div>
-      <div class="actions" style="justify-content:space-between;margin-top:22px">
-        ${btn('Назад', 'create', 'ghost')}${btn('Сформировать карточку ' + I('arrow', 16), 'editor')}
-      </div>
-    </div>`,
-    'clarify',
-    'business',
-  );
+  return create(state);
 }
 
 function rating(state) {
-  const ratingRows = [
-    ['Контекст и потребность', '20/20 ✓'],
-    ['Данные и материалы', '20/20 ✓'],
-    ['Ожидаемый результат', '15/15 ✓'],
-    ['Критерии успеха', state.rating > 76 ? '15/15 ✓' : '0/15'],
-    ['Ограничения', '10/10 ✓'],
-    ['Пользователи', '6/10'],
-    ['Связь с бизнесом', '5/10'],
-  ];
-  return /* HTML */ `<aside class="card rating">
-    <h3>Готовность задачи</h3>
-    <div class="score-large">${state.rating}<small>/100</small></div>
-    ${progress(state.rating)}${badge(...level(state.rating))}
-    <div class="rating-list">
-      ${ratingRows.map(([a, b]) => /* HTML */ `<div class="rating-line"><span>${a}</span><strong>${b}</strong></div>`).join('')}
-    </div>
-    ${
-      state.rating < 90
-        ? /* HTML */ `<div class="callout">
-            <strong>${I('spark', 15)} Повысить рейтинг</strong>
-            <p>Добавьте измеримые критерии успеха.</p>
-            <div class="row" style="justify-content:space-between">
-              ${badge('+15 баллов', 'soft')}${btn('Дополнить', 'improve', 'ghost small')}
-            </div>
-          </div>`
-        : /* HTML */ `<div class="callout">
-            <strong>Отличная готовность</strong>
-            <p>Задача подробно описана и готова к публикации.</p>
-          </div>`
-    }
-  </aside>`;
+  const scoring = state.aiScoring;
+  let content;
+  if (scoring?.status === 'loading') {
+    content = '<p role="status" aria-live="polite">OpenAI оценивает качество карточки...</p>';
+  } else if (scoring?.status === 'error') {
+    content = `<p role="alert">${esc(scoring.error)}</p>${btn('Повторить AI-Scoring', 'score-task', 'ghost small')}`;
+  } else if (scoring?.status === 'ready') {
+    const result = scoring.result;
+    content = `<div class="score-large">${result.score}<small>/100</small></div>${progress(result.score)}<p>${esc(result.summary)}</p><div class="rating-list">${result.criteria.map((criterion) => `<section class="info-section"><div class="rating-line"><strong>${esc(criterion.label)}</strong><strong>${criterion.score}/${criterion.maxScore}</strong></div><p>${esc(criterion.explanation)}</p><p class="hint">Рекомендация: ${esc(criterion.recommendation)}</p></section>`).join('')}</div>${btn('Пересчитать оценку', 'score-task', 'ghost small')}`;
+  } else {
+    content = `<p>Оцените конкретность, полноту и проверяемость задачи.</p>${btn('Оценить с AI', 'score-task', 'ghost small')}`;
+  }
+  return `<aside class="card rating"><h3>AI-Scoring</h3>${content}<p class="hint">Оценка качества постановки задачи, а не проверка достоверности фактов. После редактирования оценка пересчитывается через OpenAI.</p></aside>`;
 }
 
 export function editor(state) {
   return layout(
-    `${stepper(3)}<div class="row" style="justify-content:space-between;flex-wrap:wrap"><div><span class="eyebrow">Шаг 3 из 4</span><h1 class="page-title">Карточка задачи</h1><p class="sub">Проверьте информацию перед публикацией.</p></div>${badge(I('spark', 13) + ' Сформировано с помощью AI', 'soft')}</div><div class="editor-grid"><div class="card editor-card"><div class="row">${badge('FinTech')}${badge('Черновик', 'draft')}</div><h2>Анализ и прогнозирование оттока клиентов</h2>${tags(['Machine Learning', 'Analytics'])}${Object.entries(
+    `${stepper(3)}<div class="row" style="justify-content:space-between;flex-wrap:wrap"><div><span class="eyebrow">Шаг 3 из 4</span><h1 class="page-title">Карточка задачи</h1><p class="sub">Проверьте информацию перед публикацией.</p></div>${badge(I('spark', 13) + ' Сформировано с помощью AI', 'soft')}</div><div class="editor-grid"><div class="card editor-card"><div class="row">${state.acceptedAnalysis ? '' : badge('FinTech')}${badge('Черновик', 'draft')}</div><h2>${esc(state.acceptedAnalysis ? state.fields['Название'] : 'Анализ и прогнозирование оттока клиентов')}</h2>${state.acceptedAnalysis ? '' : tags(['Machine Learning', 'Analytics'])}${Object.entries(
       state.fields,
     )
       .map(
