@@ -20,16 +20,6 @@ import { syncAuthForm } from './features/auth/actions.js';
 import { createProposalsRepository } from './features/proposals/repository.js';
 import { createProposalsController } from './features/proposals/controller.js';
 import { syncProposalForm } from './features/proposals/form.js';
-import './styles/auth.css';
-import './styles/attachments.css';
-import './styles/task-editor.css';
-import './styles/profile.css';
-import { createProfilesService } from './features/profiles/service.js';
-import { createProfilesController } from './features/profiles/controller.js';
-import { createProposalsService } from './features/proposals/service.js';
-import { createProposalsController } from './features/proposals/controller.js';
-import { createAttachmentsClient } from './features/attachments/service.js';
-import { createAttachmentsController } from './features/attachments/controller.js';
 
 const root = document.querySelector('#app');
 const config = readConfig();

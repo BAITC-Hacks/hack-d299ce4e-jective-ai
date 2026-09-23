@@ -29,12 +29,12 @@ function catalogCard(task) {
   const scored = Number.isFinite(task.score);
   return /* HTML */ `<article class="card catalog-card">
     <div class="row" style="justify-content:space-between">
-      ${scored ? `<span class="catalog-score">${esc(task.score)}<small style="font-size:12px;color:#9aa7b9">/100</small></span>` : '<span class="muted">Нет оценки</span>'}
+      ${scored ? `<span class="catalog-score">${esc(task.score)}<small style="font-size:12px;color:var(--color-muted)">/100</small></span>` : '<span class="muted">Нет оценки</span>'}
       ${scored ? badge(...level(task.score)) : ''}
     </div>
     <h3>${esc(task.title)}</h3>
     <p>
-      ${task.industry ? `<strong style="color:#5363d2">${esc(task.industry)}</strong> · ` : ''}${esc(task.description)}
+      ${task.industry ? `<strong style="color:var(--color-accent-hover)">${esc(task.industry)}</strong> · ` : ''}${esc(task.description)}
     </p>
     ${tags(task.tags)}
     <div class="bottom">
