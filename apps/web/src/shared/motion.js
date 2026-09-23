@@ -3,6 +3,7 @@ export function createMotion() {
   let topbar;
   let onScroll;
   let pointerLanding;
+  let pointerHero;
   let onPointerMove;
   let onPointerLeave;
   let pointerFrame;
@@ -23,7 +24,12 @@ export function createMotion() {
       pointerLanding.style.removeProperty('--pointer-x');
       pointerLanding.style.removeProperty('--pointer-y');
     }
+    if (pointerHero) {
+      pointerHero.style.removeProperty('--hero-pointer-x');
+      pointerHero.style.removeProperty('--hero-pointer-y');
+    }
     pointerLanding = undefined;
+    pointerHero = undefined;
     onPointerMove = undefined;
     onPointerLeave = undefined;
     pointerPosition = undefined;
@@ -54,6 +60,7 @@ export function createMotion() {
     if (!canTrackPointer) return;
 
     pointerLanding = landing;
+    pointerHero = landing.querySelector('.hero-v2');
 
     const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
     const queuePointerUpdate = () => {
@@ -67,6 +74,8 @@ export function createMotion() {
         if (!pointerPosition) {
           pointerLanding.style.setProperty('--pointer-x', '50%');
           pointerLanding.style.setProperty('--pointer-y', '16%');
+          pointerHero?.style.setProperty('--hero-pointer-x', '50%');
+          pointerHero?.style.setProperty('--hero-pointer-y', '48%');
           return;
         }
 
@@ -77,6 +86,15 @@ export function createMotion() {
         const y = clamp(((pointerPosition.y - rect.top) / rect.height) * 100, 0, 100);
         pointerLanding.style.setProperty('--pointer-x', `${x.toFixed(2)}%`);
         pointerLanding.style.setProperty('--pointer-y', `${y.toFixed(2)}%`);
+
+        if (!pointerHero) return;
+        const heroRect = pointerHero.getBoundingClientRect();
+        if (!heroRect.width || !heroRect.height) return;
+
+        const heroX = clamp(((pointerPosition.x - heroRect.left) / heroRect.width) * 100, 0, 100);
+        const heroY = clamp(((pointerPosition.y - heroRect.top) / heroRect.height) * 100, 0, 100);
+        pointerHero.style.setProperty('--hero-pointer-x', `${heroX.toFixed(2)}%`);
+        pointerHero.style.setProperty('--hero-pointer-y', `${heroY.toFixed(2)}%`);
       });
 
       pointerFrame = frame;
@@ -107,12 +125,16 @@ export function createMotion() {
   function setupHeroTypewriter(landing, reduce) {
     const title = landing.querySelector('.hero-type-title');
     const lines = [...landing.querySelectorAll('.hero-type-line')];
+    const delayedControls = [
+      ...landing.querySelectorAll('.hero-copy .actions, .hero-copy .scroll-cue'),
+    ];
     if (!title || !lines.length || reduce || typeof window.requestAnimationFrame !== 'function')
       return;
 
     const text = lines.map((line) => line.dataset.typewriterText || line.textContent.trim());
     if (!text.every(Boolean)) return;
 
+    delayedControls.forEach((control) => control.classList.add('will-enter'));
     const characters = text.map((line) => Array.from(line));
     lines.forEach((line) => {
       line.textContent = '';
@@ -158,6 +180,7 @@ export function createMotion() {
       pauseUntil = now + 240;
 
       if (activeLine >= lines.length) {
+        delayedControls.forEach((control) => control.classList.add('is-ready'));
         return;
       }
 
