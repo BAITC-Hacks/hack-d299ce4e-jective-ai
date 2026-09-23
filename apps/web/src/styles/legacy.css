@@ -768,6 +768,9 @@ select:focus-visible {
   gap: 22px;
   margin-top: 26px;
 }
+.detail-grid.detail-grid--single {
+  grid-template-columns: minmax(0, 1fr);
+}
 .editor-card {
   padding: 31px;
 }

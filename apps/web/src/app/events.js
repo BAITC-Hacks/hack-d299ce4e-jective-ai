@@ -7,7 +7,7 @@ import { createAuthActions } from '../features/auth/actions.js';
 
 /** One delegated event layer; feature modules own business actions. */
 export function bindEvents(context) {
-  const { store, router, feedback } = context;
+  const { store, router, feedback, publication, workspace } = context;
   const scoring = createScoringController(context);
   const tasks = createTaskActions({ ...context, scoring });
   const analysis = createAnalysisController({ ...context, scoring });
@@ -19,14 +19,27 @@ export function bindEvents(context) {
     ...createProposalActions(context),
     forgot: auth.forgot,
     logout: auth.logout,
+    'force-logout': auth.forceLogout,
     'retry-auth': auth.retry,
     close: feedback.closeModal,
   };
   const controller = new AbortController();
   const listen = (type, handler) =>
     document.addEventListener(type, handler, { signal: controller.signal });
+  window.addEventListener(
+    'beforeunload',
+    (event) => {
+      if (!workspace.hasUnsaved()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    },
+    { signal: controller.signal },
+  );
+  listen('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') void workspace.flush();
+  });
 
-  function dispatch(name) {
+  function dispatch(name, taskId, values) {
     const publicActions = ['forgot', 'close', 'logout', 'retry-auth', 'retry-catalog'];
     if (
       Object.hasOwn(actions, name) &&
@@ -36,7 +49,8 @@ export function bindEvents(context) {
       router.navigate('login');
       return;
     }
-    if (Object.hasOwn(actions, name)) actions[name]();
+    if (name === 'edit-task') return publication.edit(taskId);
+    if (Object.hasOwn(actions, name)) actions[name](values);
     else router.navigate(name);
   }
 
@@ -64,8 +78,11 @@ export function bindEvents(context) {
       });
       return;
     }
+    if ((route || action) === 'create' && store.getState().taskSave.task) {
+      if (!workspace.newDraft()) return;
+    }
     if (route) return router.navigate(route);
-    if (action) dispatch(action);
+    if (action) dispatch(action, element.dataset.taskId, element.dataset.proposalId);
   });
 
   listen('submit', (event) => {
@@ -74,12 +91,32 @@ export function bindEvents(context) {
       void auth.submit(event.target);
     } else if (event.target.id === 'offer-form') {
       event.preventDefault();
-      dispatch('offer-success');
+      dispatch('offer-success', undefined, Object.fromEntries(new FormData(event.target)));
     }
   });
 
   listen('input', (event) => {
     const input = event.target;
+    const meta = input.dataset.taskMeta;
+    if (['industry', 'direction', 'tags'].includes(meta)) {
+      store.update((state) => ({
+        ...state,
+        taskMetadata: {
+          ...state.taskMetadata,
+          [meta]:
+            meta === 'tags'
+              ? [
+                  ...new Set(
+                    input.value
+                      .split(',')
+                      .map((tag) => tag.trim())
+                      .filter(Boolean),
+                  ),
+                ]
+              : input.value,
+        },
+      }));
+    }
     if (input.dataset.analysisAnswer !== undefined)
       analysis.setAnswer(input.dataset.analysisAnswer, input.value);
     if (input.dataset.analysisField !== undefined) {

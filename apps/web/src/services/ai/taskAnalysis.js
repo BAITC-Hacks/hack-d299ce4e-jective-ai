@@ -7,6 +7,7 @@ export function validateQuestions(value) {
     !value ||
     !Array.isArray(value.questions) ||
     value.questions.length < 3 ||
+    value.questions.length > 100 ||
     !Array.isArray(value.knownInformation) ||
     !value.knownInformation.every(nonempty) ||
     !Array.isArray(value.missingInformation) ||
@@ -29,6 +30,7 @@ export function validateQuestions(value) {
 export function validateResult(value) {
   if (
     !value ||
+    (typeof value.title === 'string' && value.title.length > 200) ||
     Object.keys(fieldLabels).some((key) => value[key] !== null && !nonempty(value[key])) ||
     !Object.keys(fieldLabels).some((key) => nonempty(value[key])) ||
     !Array.isArray(value.missingInformation) ||
@@ -42,15 +44,20 @@ export function validateResult(value) {
 }
 
 export function createTaskAnalysisService({
+  getAccessToken,
   client = createHttpClient({
     baseUrl: import.meta.env?.VITE_API_BASE_URL || '/api',
     timeoutMs: 75000,
   }),
 } = {}) {
   async function run(operation, payload, validate) {
+    const token = getAccessToken ? await getAccessToken() : null;
     const value = await client.request(`ai/task-analysis/${operation}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify(payload),
     });
     return validate(value);

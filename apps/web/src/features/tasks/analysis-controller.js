@@ -7,6 +7,7 @@ export function createAnalysisController({
   router,
   service = taskAnalysisService,
   scoring = createScoringController({ store, router, service }),
+  workspace,
 }) {
   const current = () => store.getState().taskAnalysis || initialAnalysis();
   const update = (patch) =>
@@ -17,12 +18,18 @@ export function createAnalysisController({
   };
   async function request(operation) {
     if (['analyzing', 'generating'].includes(current().step)) return;
+    const scope = workspace?.scope();
+    const isCurrent = () => !workspace || workspace.isCurrent(scope);
     const originalDescription =
       operation === 'analyzing' ? store.getState().description : current().originalDescription;
     show({ step: operation, originalDescription, error: '', retry: operation });
     try {
+      if (workspace && !(await workspace.flush()))
+        throw new Error('Сначала сохраните черновик в Supabase: повторите синхронизацию.');
+      if (!isCurrent()) return;
       if (operation === 'analyzing') {
         const response = await service.analyzeTaskDescription(originalDescription);
+        if (!isCurrent()) return;
         show({
           ...response,
           step: 'questions',
@@ -37,9 +44,12 @@ export function createAnalysisController({
           questions,
           answers,
         );
+        if (!isCurrent()) return;
         show({ step: 'result', analysisResult });
       }
+      if (workspace) await workspace.flush();
     } catch (error) {
+      if (!isCurrent()) return;
       show({ step: 'error', error: error.message || 'Повторите попытку.' });
     }
   }
@@ -53,6 +63,7 @@ export function createAnalysisController({
         Object.entries(fieldLabels).map(([key, label]) => [label, normalized[key] || 'Не указано']),
       ),
       rating: null,
+      aiScoring: null,
     }));
     router.navigate('editor');
     void scoring.score();
@@ -75,10 +86,12 @@ export function createAnalysisController({
       'analysis-retry': () => request(current().retry),
       'analysis-description': () => show({ step: 'description' }),
       'analysis-back': () => show({ currentQuestion: Math.max(0, current().currentQuestion - 1) }),
-      'analysis-next': () =>
-        current().currentQuestion + 1 < current().questions.length
+      'analysis-next': async () => {
+        if (workspace && !(await workspace.flush())) return;
+        return current().currentQuestion + 1 < current().questions.length
           ? show({ currentQuestion: current().currentQuestion + 1 })
-          : request('generating'),
+          : request('generating');
+      },
       'analysis-questions': () => show({ step: 'questions', currentQuestion: 0 }),
       'analysis-accept': () => {
         if (current().step === 'result') onAnalysisAccepted(current().analysisResult);

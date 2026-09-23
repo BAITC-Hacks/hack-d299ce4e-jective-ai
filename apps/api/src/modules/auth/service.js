@@ -3,7 +3,7 @@ import { validateAuthUserResponse } from '@ai-sana/contracts';
 import { HttpError } from '../../shared/http-error.js';
 import { authUnavailable, createAuthRepository, unauthorized } from './repository.js';
 
-function readBearerToken(request) {
+export function readBearerToken(request) {
   const header = request.headers?.authorization;
   if (typeof header !== 'string' || header.length > 16_384) throw unauthorized();
 

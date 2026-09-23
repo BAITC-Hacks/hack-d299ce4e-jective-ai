@@ -94,7 +94,7 @@ test('every workspace page uses authenticated identity and logout rather than fa
   assert.match(profile, /<dd>Бизнес<\/dd>/);
   assert.doesNotMatch(profile, /Data Wizards|Демонстрационный профиль/);
   const home = pages.landing(state);
-  assert.match(home, /Личный кабинет ↗/);
+  assert.doesNotMatch(home, /Личный кабинет ↗|data-action="profile"/);
   assert.doesNotMatch(home, /data-action="register"/);
 });
 

@@ -2,6 +2,8 @@ import { esc } from '../shared/html.js';
 import { getTask, level, selectTasks } from '../features/tasks/model.js';
 import { I, badge, btn, tags } from '../components/ui.js';
 import { layout } from '../components/layout.js';
+import { fieldLabels } from '../services/ai/types.js';
+import { canProposeSolution } from '../features/proposals/permissions.js';
 
 function catalogStatus(state) {
   if (state.catalog.status === 'error') {
@@ -24,20 +26,19 @@ function catalogRole(state) {
 }
 
 function catalogCard(task) {
+  const scored = Number.isFinite(task.score);
   return /* HTML */ `<article class="card catalog-card">
     <div class="row" style="justify-content:space-between">
-      <span class="catalog-score"
-        >${esc(task.score)}<small style="font-size:12px;color:#9aa7b9">/100</small></span
-      >
-      ${badge(...level(task.score))}
+      ${scored ? `<span class="catalog-score">${esc(task.score)}<small style="font-size:12px;color:#9aa7b9">/100</small></span>` : '<span class="muted">Нет оценки</span>'}
+      ${scored ? badge(...level(task.score)) : ''}
     </div>
     <h3>${esc(task.title)}</h3>
-    <p><strong style="color:#5363d2">${esc(task.industry)}</strong> · ${esc(task.description)}</p>
+    <p>
+      ${task.industry ? `<strong style="color:#5363d2">${esc(task.industry)}</strong> · ` : ''}${esc(task.description)}
+    </p>
     ${tags(task.tags)}
     <div class="bottom">
-      <span class="muted"
-        >${task.score < 40 ? 'Требует дополнительных уточнений' : `${esc(task.reply)} откликов`}</span
-      >
+      <span class="muted">Опубликована</span>
       ${btn('Посмотреть задачу', `detail?id=${encodeURIComponent(task.id)}`, 'ghost small')}
     </div>
   </article>`;
@@ -47,6 +48,14 @@ export function catalog(state) {
   const filters = state.filters;
   const list = selectTasks(state);
   const status = catalogStatus(state);
+  const options = (key) =>
+    [...new Set(state.catalog.items.map((task) => task[key]).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'ru'))
+      .map(
+        (value) =>
+          `<option value="${esc(value)}" ${filters[key] === value ? 'selected' : ''}>${esc(value)}</option>`,
+      )
+      .join('');
 
   return layout(
     /* HTML */ `<span class="eyebrow">Открытые проекты</span>
@@ -62,15 +71,15 @@ export function catalog(state) {
         />
         <select class="select" data-filter="industry" aria-label="Отрасль">
           <option value="">Отрасль</option>
-          ${['Retail', 'FinTech', 'Telecom', 'Logistics'].map((value) => /* HTML */ `<option ${filters.industry === value ? 'selected' : ''}>${value}</option>`).join('')}
+          ${options('industry')}
         </select>
         <select class="select" data-filter="direction" aria-label="Направление">
           <option value="">Направление</option>
-          ${['Machine Learning', 'Analytics', 'AI'].map((value) => /* HTML */ `<option ${filters.direction === value ? 'selected' : ''}>${value}</option>`).join('')}
+          ${options('direction')}
         </select>
         <select class="select" data-filter="level" aria-label="Уровень готовности">
           <option value="">Уровень готовности</option>
-          ${['Приоритетная', 'Готовая', 'Рабочая', 'Черновик'].map((value) => /* HTML */ `<option ${filters.level === value ? 'selected' : ''}>${value}</option>`).join('')}
+          ${['Приоритетная', 'Готовая', 'Рабочая', 'Черновик', 'Нет оценки'].map((value) => /* HTML */ `<option ${filters.level === value ? 'selected' : ''}>${value}</option>`).join('')}
         </select>
       </div>
       <div class="sortbar">
@@ -85,7 +94,7 @@ export function catalog(state) {
         </div>
       </div>
       <div class="catalog-grid">
-        ${status || list.map(catalogCard).join('') || '<div class="card empty" style="grid-column:1/-1">По вашему запросу задач не найдено. Попробуйте другие фильтры.</div>'}
+        ${status || list.map(catalogCard).join('') || `<div class="card empty" style="grid-column:1/-1">${state.catalog.items.length ? 'По вашему запросу задач не найдено. Попробуйте другие фильтры.' : 'Пока нет опубликованных задач. Здесь появятся задачи пользователей после публикации.'}</div>`}
       </div>`,
     'catalog',
     catalogRole(state),
@@ -95,10 +104,10 @@ export function catalog(state) {
 
 export function detail(state) {
   const role = catalogRole(state);
+  const canOffer = canProposeSolution(state.auth);
   const task = getTask(state);
   const backLink = '<button class="back-link" data-route="catalog">← К каталогу задач</button>';
-  const isPublished = state.published && Number(state.currentTaskId) === 5;
-  const status = isPublished ? '' : catalogStatus(state);
+  const status = catalogStatus(state);
 
   if (status) return layout(`${backLink}${status}`, 'detail', role, state.auth);
   if (!task) {
@@ -110,39 +119,42 @@ export function detail(state) {
     );
   }
 
-  const [readiness, badgeClass] = level(task.score);
-  const hasDemoFields = Number(task.id) === 2 || isPublished;
-  const sections = hasDemoFields
-    ? Object.entries(state.fields)
-        .map(
-          ([key, value]) =>
-            /* HTML */ `<section class="info-section">
-              <h3>${esc(key === 'Контакт и взаимодействие' ? 'Формат взаимодействия' : key)}</h3>
-              <p>${esc(value)}</p>
-            </section>`,
-        )
-        .join('')
-    : '';
+  const scored = Number.isFinite(task.score);
+  const [readiness, badgeClass] = scored ? level(task.score) : ['Нет оценки', 'soft'];
+  const sections = Object.entries(fieldLabels)
+    .filter(([key]) => key !== 'title' && key !== 'businessContact' && task.card?.[key])
+    .map(
+      ([key, label]) =>
+        /* HTML */ `<section class="info-section">
+          <h3>${esc(label)}</h3>
+          <p>${esc(task.card[key])}</p>
+        </section>`,
+    )
+    .join('');
 
   return layout(
-    `${backLink}<div class="detail-grid" style="margin-top:0">
+    `${backLink}<div class="detail-grid${canOffer ? '' : ' detail-grid--single'}" style="margin-top:0">
     <article class="card detail-card">
       <div class="row">
-        ${badge(esc(task.industry))}
-        ${badge(`${esc(task.score)}/100 · ${readiness}`, badgeClass)}
-        <span class="muted right">Откликов: ${esc(task.reply)}</span>
+        ${task.industry ? badge(esc(task.industry)) : ''}
+        ${badge(scored ? `${esc(task.score)}/100 · ${readiness}` : readiness, badgeClass)}
+        ${task.direction ? `<span class="muted right">${esc(task.direction)}</span>` : ''}
       </div>
       <h1>${esc(task.title)}</h1>
       ${tags(task.tags)}
       <section class="info-section"><h3>Описание задачи</h3><p>${esc(task.description)}</p></section>
       ${sections}
     </article>
-    <aside class="card side-cta">
+    ${
+      canOffer
+        ? `<aside class="card side-cta">
       <h3>Хотите решить эту задачу?</h3>
       <p>Расскажите бизнесу, как ваша команда предлагает подойти к решению.</p>
       ${btn('Предложить решение', 'offer')}
       ${btn(state.saved ? 'Сохранено ✓' : I('bookmark', 15) + ' Сохранить', 'save-task', 'ghost')}
-    </aside>
+    </aside>`
+        : ''
+    }
   </div>`,
     'detail',
     role,

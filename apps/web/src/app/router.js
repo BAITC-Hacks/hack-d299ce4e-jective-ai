@@ -12,7 +12,7 @@ export function isAuthCallbackHash(hash) {
 export function parseRoute(hash) {
   const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
   const params = new URLSearchParams(query);
-  return { name: path || 'home', taskId: params.has('id') ? Number(params.get('id')) : 2 };
+  return { name: path || 'home', taskId: params.has('id') ? Number(params.get('id')) : null };
 }
 
 const routes = {
@@ -29,7 +29,6 @@ const routes = {
   student: pages.student,
   'my-proposals': pages.myProposals,
   proposals: pages.proposals,
-  team: (state) => pages.simple(state, 'team'),
   profile: (state) => pages.simple(state, 'profile'),
 };
 
@@ -51,11 +50,10 @@ export function createRouter({ root, store, feedback, motion }) {
       'proposals',
       'student',
       'my-proposals',
-      'team',
       'profile',
     ];
     const businessPages = ['dashboard', 'my-tasks', 'create', 'clarify', 'editor', 'proposals'];
-    const studentPages = ['student', 'my-proposals', 'team'];
+    const studentPages = ['student', 'my-proposals'];
     if (privatePages.includes(name) && auth.status === 'initializing') {
       root.innerHTML = '<div class="auth-loading" role="status">Проверяем вход…</div>';
       document.title = 'Вход — AI Sana';

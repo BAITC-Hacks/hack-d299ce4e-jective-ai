@@ -2,8 +2,9 @@ export function createCatalogController({ store, repository, render }) {
   let pending;
   let disposed = false;
 
-  function load() {
+  function load({ force = false } = {}) {
     if (disposed) return Promise.resolve();
+    if (pending && force) return pending.then(() => load());
     if (pending) return pending;
     store.update((state) => ({
       ...state,

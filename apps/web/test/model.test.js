@@ -47,10 +47,12 @@ test('task selection combines search and filters without mutating the store', ()
   );
 });
 
-test('published draft participates in filtering and sorting and detail selection', () => {
+test('only persisted catalog rows participate in filtering, sorting and detail selection', () => {
   const state = taskState();
   state.published = true;
   state.rating = 91;
+  assert.equal(getTask(state, 5), undefined, 'a client-side published flag cannot invent a task');
+  state.catalog.items.push({ ...demoTasks[1], id: 5, title: 'Persisted task', score: 91 });
   const before = structuredClone(state);
   assert.deepEqual(
     selectTasks(state).map((task) => task.id),
@@ -78,4 +80,5 @@ test('published draft participates in filtering and sorting and detail selection
   assert.equal(getTask(state, 999), undefined);
   assert.equal(level(91)[0], 'Приоритетная');
   assert.equal(level(34)[0], 'Черновик');
+  assert.equal(level(null)[0], 'Нет оценки');
 });

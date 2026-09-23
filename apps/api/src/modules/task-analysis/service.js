@@ -27,8 +27,8 @@ const objectSchema = (properties) => ({
   required: Object.keys(properties),
   additionalProperties: false,
 });
-const strings = { type: 'array', items: { type: 'string' } };
-const missing = { type: 'array', items: { type: 'string', enum: fields } };
+const strings = { type: 'array', maxItems: 100, items: { type: 'string' } };
+const missing = { type: 'array', maxItems: fields.length, items: { type: 'string', enum: fields } };
 const questionSchema = objectSchema({
   id: { type: 'string' },
   field: { type: 'string', enum: fields },
@@ -38,10 +38,15 @@ const questionSchema = objectSchema({
 export const questionsSchema = objectSchema({
   knownInformation: strings,
   missingInformation: missing,
-  questions: { type: 'array', minItems: 3, items: questionSchema },
+  questions: { type: 'array', minItems: 3, maxItems: 100, items: questionSchema },
 });
 export const resultSchema = objectSchema({
-  ...Object.fromEntries(fields.map((field) => [field, { type: ['string', 'null'] }])),
+  ...Object.fromEntries(
+    fields.map((field) => [
+      field,
+      { type: ['string', 'null'], ...(field === 'title' ? { pattern: '^[\\s\\S]{0,200}$' } : {}) },
+    ]),
+  ),
   missingInformation: missing,
 });
 
@@ -51,6 +56,7 @@ const text = (value, max = 10000) =>
 const validQuestions = (questions) =>
   Array.isArray(questions) &&
   questions.length >= 3 &&
+  questions.length <= 100 &&
   questions.every(
     (q) =>
       isObject(q) &&
@@ -69,7 +75,8 @@ function validateInput(operation, input) {
       fields.some(
         (key) =>
           input.card[key] !== null &&
-          (typeof input.card[key] !== 'string' || input.card[key].length > 10000),
+          (typeof input.card[key] !== 'string' ||
+            input.card[key].length > (key === 'title' ? 200 : 10000)),
       )
     ) {
       throw new HttpError(400, 'INVALID_CARD', 'Некорректная карточка для AI-Scoring.');
@@ -107,12 +114,14 @@ function validateOutput(operation, value) {
   const validMissing =
     isObject(value) &&
     Array.isArray(value.missingInformation) &&
+    value.missingInformation.length <= fields.length &&
     value.missingInformation.every((key) => fields.includes(key));
   if (operation === 'questions') {
     if (
       !validMissing ||
       !validQuestions(value.questions) ||
       !Array.isArray(value.knownInformation) ||
+      value.knownInformation.length > 100 ||
       !value.knownInformation.every((item) => text(item))
     )
       throw invalidOutput();
@@ -129,7 +138,7 @@ function validateOutput(operation, value) {
   }
   if (
     !validMissing ||
-    fields.some((key) => value[key] !== null && !text(value[key])) ||
+    fields.some((key) => value[key] !== null && !text(value[key], key === 'title' ? 200 : 10000)) ||
     !fields.some((key) => text(value[key]))
   )
     throw invalidOutput();

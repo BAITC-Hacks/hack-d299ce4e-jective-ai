@@ -1,4 +1,4 @@
-import { I, brand, badge } from './ui.js';
+import { I, brand } from './ui.js';
 import { esc } from '../shared/html.js';
 
 export function navItems(role) {
@@ -15,7 +15,6 @@ export function navItems(role) {
         ['student', 'Обзор', 'grid'],
         ['catalog', 'Каталог задач', 'search'],
         ['my-proposals', 'Мои отклики', 'list'],
-        ['team', 'Моя команда', 'users'],
         ['profile', 'Профиль', 'team'],
       ];
 }
@@ -34,6 +33,9 @@ export function layout(content, page, role = 'business', auth = null) {
         .toLocaleUpperCase('ru')
     : 'Г';
   const items = navItems(role);
+  // Keep profile/logout reachable on phones, where the sidebar is hidden.
+  // Creating a task is still available from the dashboard and task list.
+  const mobileItems = items.filter(([route]) => route !== 'create');
   return /* HTML */ `<div class="shell">
     <aside class="sidebar">
       ${brand()}
@@ -52,19 +54,11 @@ export function layout(content, page, role = 'business', auth = null) {
     <main class="main">
       <header class="main-head">
         <span class="crumb">Рабочее пространство / <strong>${pageTitle(page)}</strong></span>
-        <div class="row">
-          ${badge('Демо-задачи', 'soft')}
-          <div class="header-account">
-            <strong>${esc(fullName)}</strong><small>${roleLabel}</small>
-          </div>
-          <span class="user-dot" title="${esc(fullName)}">${esc(initials)}</span>
-          ${signedIn ? `<button class="text-btn header-logout" data-action="logout" ${auth.busy ? 'disabled' : ''}>Выйти</button>` : '<button class="text-btn" data-route="login">Войти</button>'}
-        </div>
       </header>
       <div class="content">${content}</div>
     </main>
     <nav class="mobile-nav">
-      ${items
+      ${mobileItems
         .slice(0, 5)
         .map(
           ([r, t, i]) =>
@@ -89,7 +83,6 @@ export function pageTitle(r) {
       student: 'Обзор',
       'my-proposals': 'Мои отклики',
       proposals: 'Отклики',
-      team: 'Моя команда',
       profile: 'Профиль',
     }[r] || 'AI Sana'
   );

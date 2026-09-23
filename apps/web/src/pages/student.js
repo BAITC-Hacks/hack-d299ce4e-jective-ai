@@ -1,7 +1,7 @@
-import { I, btn, badge, stat } from '../components/ui.js';
+import { I, btn, badge } from '../components/ui.js';
 import { layout } from '../components/layout.js';
 import { esc } from '../shared/html.js';
-import { getTask } from '../features/tasks/model.js';
+import { proposalList } from '../components/proposal-card.js';
 
 export function student(state) {
   return layout(
@@ -16,57 +16,35 @@ export function student(state) {
         </p>
         ${btn('Открыть каталог ' + I('arrow', 16), 'catalog')}
       </div>
-      <div class="stats" style="grid-template-columns:repeat(3,1fr)">
-        ${stat(state.proposalSent ? 6 : 5, 'Отправлено предложений', 'list')}${stat(state.proposalSent ? 3 : 2, 'На рассмотрении', 'clock')}${stat(1, 'Команда выбрана', 'check')}
-      </div>
       <div class="section-head">
-        <h2 class="section-title">Мои отклики</h2>
-        <button class="text-btn" data-route="my-proposals">Все отклики →</button>
+        <h2 class="section-title">Новые задачи</h2>
+        <button class="text-btn" data-route="catalog">Весь каталог →</button>
       </div>
-      ${proposalList(state)}`,
+      ${recentTasks(state)}`,
     'student',
     'student',
     state.auth,
   );
 }
 
-function proposalList(state) {
-  const proposedTask = getTask(state, state.proposedTaskId);
-  const previousProposals = [
-    ['Анализ оттока клиентов', 'На рассмотрении', 'review', 2],
-    ['Прогнозирование спроса', 'Команда выбрана', 'selected', 1],
-    ['AI-помощник поддержки', 'Отклонено', 'rejected', 3],
-  ];
-  return /* HTML */ `<div class="task-list">
-    ${previousProposals
-      .map(
-        ([title, status, kind, id]) =>
-          /* HTML */ ` <div class="card task-row">
-            <div>
-              <h3>${esc(title)}</h3>
-              ${badge(status, kind)}
-            </div>
-            ${btn('Открыть задачу', `detail?id=${id}`, 'ghost small')}
-          </div>`,
-      )
-      .join('')}${
-      state.proposalSent && state.proposedTaskId !== null
-        ? /* HTML */ ` <div class="card task-row">
-            <div>
-              <h3>${esc(proposedTask?.title || 'Задача недоступна')}</h3>
-              ${badge('На рассмотрении', 'review')}
-            </div>
-            ${btn('Открыть задачу', `detail?id=${encodeURIComponent(state.proposedTaskId)}`, 'ghost small')}
-          </div>`
-        : ''
-    }
-  </div>`;
+function recentTasks(state) {
+  if (state.catalog.status === 'loading' || state.catalog.status === 'idle') {
+    return '<div class="card empty" role="status">Загружаем задачи…</div>';
+  }
+  if (state.catalog.status === 'error') {
+    return `<div class="card empty" role="alert"><p>${esc(state.catalog.error || 'Не удалось загрузить задачи.')}</p>${btn('Попробовать снова', 'retry-catalog', 'ghost')}</div>`;
+  }
+  const tasks = [...state.catalog.items].sort((a, b) => b.id - a.id).slice(0, 3);
+  return `<div class="task-list">${tasks.map((task) => `<div class="card task-row"><div><h3>${esc(task.title)}</h3><p>${esc(task.description)}</p>${task.industry ? badge(esc(task.industry)) : ''}</div>${btn('Открыть задачу', `detail?id=${encodeURIComponent(task.id)}`, 'ghost small')}</div>`).join('') || '<div class="card empty">Пока нет опубликованных задач. Они появятся здесь после публикации бизнесом.</div>'}</div>`;
 }
 
 export function myProposals(state) {
   return layout(
-    /* HTML */ `<h1 class="page-title">Мои отклики</h1>
-      <p class="sub">Следите за статусом предложений вашей команды.</p>
+    /* HTML */ `<div class="row" style="justify-content:space-between;flex-wrap:wrap">
+        <h1 class="page-title">Мои отклики</h1>
+        ${btn('Обновить', 'refresh-proposals', 'ghost small', state.proposals?.status === 'loading' ? 'disabled' : '')}
+      </div>
+      <p class="sub">Ваши сохранённые предложения по задачам бизнеса.</p>
       <div style="margin-top:25px">${proposalList(state)}</div>`,
     'my-proposals',
     'student',
