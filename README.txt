@@ -1,9 +1,16 @@
-AI Sana — кликабельный frontend-прототип
+AI Sana — Vite + Tailwind CSS + Node.js API
 
-Как открыть:
-1. Распакуйте архив.
-2. Откройте index.html в браузере.
+Полная инструкция: README.md
+Описание архитектуры: docs/architecture.md
 
-Файлы: index.html, style.css, app.js.
-Все данные демонстрационные. Сервер, база данных, авторизация и AI API не подключены.
-Для шрифта Manrope требуется интернет; без него используется системный шрифт.
+Из корня проекта:
+  npm install
+  npm run dev
+
+Frontend и API одновременно:
+  npm run dev:full
+
+Интерфейс: http://localhost:3000
+Остановка: Ctrl+C
+
+Проверка проекта: npm run check
