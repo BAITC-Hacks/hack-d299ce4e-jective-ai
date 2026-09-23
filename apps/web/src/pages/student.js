@@ -2,6 +2,7 @@ import { I, btn, badge, stat } from '../components/ui.js';
 import { layout } from '../components/layout.js';
 import { esc } from '../shared/html.js';
 import { getTask } from '../features/tasks/model.js';
+import { proposalCards } from '../components/proposal-list.js';
 
 export function student(state) {
   return layout(
@@ -17,7 +18,7 @@ export function student(state) {
         ${btn('Открыть каталог ' + I('arrow', 16), 'catalog')}
       </div>
       <div class="stats" style="grid-template-columns:repeat(3,1fr)">
-        ${stat(state.proposalSent ? 6 : 5, 'Отправлено предложений', 'list')}${stat(state.proposalSent ? 3 : 2, 'На рассмотрении', 'clock')}${stat(1, 'Команда выбрана', 'check')}
+        ${stat(state.proposalsData?.items?.length || 0, 'Отправлено предложений', 'list')}${stat(state.proposalsData?.items?.filter((p) => p.status === 'pending').length || 0, 'На рассмотрении', 'clock')}${stat(state.proposalsData?.items?.filter((p) => p.status === 'selected').length || 0, 'Команда выбрана', 'check')}
       </div>
       <div class="section-head">
         <h2 class="section-title">Мои отклики</h2>
@@ -31,6 +32,7 @@ export function student(state) {
 }
 
 function proposalList(state) {
+  if (state.auth?.status === 'authenticated') return proposalCards(state);
   const proposedTask = getTask(state, state.proposedTaskId);
   const previousProposals = [
     ['Анализ оттока клиентов', 'На рассмотрении', 'review', 2],

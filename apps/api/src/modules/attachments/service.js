@@ -15,7 +15,7 @@ function storageError() {
   return new HttpError(
     503,
     'ATTACHMENTS_UNAVAILABLE',
-    'Хранилище вложений недоступно. Проверьте настройку Supabase и выполните SQL для вложений.',
+    'Сохранение вложений временно недоступно. Попробуйте позже.',
   );
 }
 const unwrap = (result) => {

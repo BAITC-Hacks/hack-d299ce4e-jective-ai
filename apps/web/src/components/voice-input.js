@@ -19,8 +19,8 @@ export function voiceInput(state, target) {
   const messages = {
     requesting: 'Разрешите доступ к микрофону в браузере.',
     recording: '● Идёт запись. Говорите — до 2 минут. Затем запись остановится автоматически.',
-    transcribing: 'OpenAI распознаёт речь...',
+    transcribing: 'ИИ распознаёт речь...',
     done: 'Текст добавлен. Проверьте его перед продолжением.',
   };
-  return `<div class="voice-input"><div class="actions">${controls}</div>${voice.status === 'error' ? `<p role="alert" class="hint">${esc(voice.error)}</p>` : `<p role="status" aria-live="polite" class="hint">${messages[voice.status] || 'После остановки аудио отправится в OpenAI. Текст добавится в это поле.'}</p>`}</div>`;
+  return `<div class="voice-input"><div class="actions">${controls}</div>${voice.status === 'error' ? `<p role="alert" class="hint">${esc(voice.error)}</p>` : `<p role="status" aria-live="polite" class="hint">${messages[voice.status] || 'После остановки ИИ распознает запись и добавит текст в это поле.'}</p>`}</div>`;
 }

@@ -37,6 +37,7 @@ export function bindEvents(context) {
   });
   const auth = createAuthActions(context);
   const actions = {
+    ...context.profiles?.actions,
     ...tasks.actions,
     ...analysis.actions,
     'score-task': () => scoring.score(),
@@ -61,6 +62,8 @@ export function bindEvents(context) {
       }
     },
     ...createProposalActions(context),
+    ...context.proposals?.actions,
+    ...(context.proposals ? { 'confirm-publish': () => context.proposals.publish() } : {}),
     forgot: auth.forgot,
     logout: auth.logout,
     'retry-auth': auth.retry,
@@ -114,16 +117,25 @@ export function bindEvents(context) {
   });
 
   listen('submit', (event) => {
+    if (event.target.id === 'profile-form' || event.target.id === 'members-search') {
+      event.preventDefault();
+      if (event.target.id === 'profile-form') void context.profiles.save(event.target);
+      else void context.profiles.search(event.target);
+      return;
+    }
     if (['login-form', 'register-form'].includes(event.target.id)) {
       event.preventDefault();
       void auth.submit(event.target);
     } else if (event.target.id === 'offer-form') {
       event.preventDefault();
-      dispatch('offer-success');
+      if (context.proposals) void context.proposals.submit(event.target);
+      else dispatch('offer-success');
     }
   });
 
   listen('input', (event) => {
+    if (event.target.closest('#profile-form'))
+      context.profiles.capture(event.target.closest('form'));
     const input = event.target;
     if (input.dataset.analysisAnswer !== undefined)
       analysis.setAnswer(input.dataset.analysisAnswer, input.value);
@@ -153,6 +165,10 @@ export function bindEvents(context) {
   });
 
   listen('change', (event) => {
+    if (event.target.id === 'profile-avatar') {
+      void context.profiles.upload(event.target.files[0]);
+      return;
+    }
     if (event.target.id === 'task-attachments') {
       void attachments.add(event.target.files);
       return;

@@ -48,7 +48,7 @@ export function create(state) {
   const flow = state.taskAnalysis || initialAnalysis();
   const step = ['questions', 'generating'].includes(flow.step) ? 2 : flow.step === 'result' ? 3 : 1;
   return layout(
-    `<div class="narrow">${stepper(step)}<span class="eyebrow">Шаг ${step} из 4</span><h1 class="page-title">Опишите вашу бизнес-задачу</h1><p class="sub">Опишите проблему своими словами — AI поможет оформить её правильно.</p><p class="hint">OpenAI анализирует описание и ответы. Проверьте результат перед публикацией.</p>${analysisContent(state, flow)}${flow.step !== 'description' ? attachmentSources(state) : ''}</div>`,
+    `<div class="narrow">${stepper(step)}<span class="eyebrow">Шаг ${step} из 4</span><h1 class="page-title">Опишите вашу бизнес-задачу</h1><p class="sub">Опишите проблему своими словами — AI поможет оформить её правильно.</p><p class="hint">ИИ анализирует описание и ответы. Проверьте результат перед публикацией.</p>${analysisContent(state, flow)}${flow.step !== 'description' ? attachmentSources(state) : ''}</div>`,
     'create',
     'business',
     state.auth,
@@ -64,7 +64,7 @@ function rating(state) {
   const scoring = state.aiScoring;
   let content;
   if (scoring?.status === 'loading') {
-    content = '<p role="status" aria-live="polite">OpenAI оценивает качество карточки...</p>';
+    content = '<p role="status" aria-live="polite">ИИ оценивает качество карточки...</p>';
   } else if (scoring?.status === 'error') {
     content = `<p role="alert">${esc(scoring.error)}</p>${btn('Повторить AI-Scoring', 'score-task', 'ghost small')}`;
   } else if (scoring?.status === 'ready') {
@@ -77,7 +77,7 @@ function rating(state) {
   } else {
     content = `<p>Оцените конкретность, полноту и проверяемость задачи.</p>${btn('Оценить с AI', 'score-task', 'ghost small')}`;
   }
-  return `<aside class="card rating ai-scoring"><h3>AI-Scoring</h3>${content}<p class="hint">Оценка качества постановки задачи, а не проверка достоверности фактов. После редактирования оценка пересчитывается через OpenAI.</p></aside>`;
+  return `<aside class="card rating ai-scoring"><h3>AI-Scoring</h3>${content}<p class="hint">Оценка качества постановки задачи, а не проверка достоверности фактов. После редактирования оценка пересчитывается через ИИ.</p></aside>`;
 }
 
 export function editor(state) {

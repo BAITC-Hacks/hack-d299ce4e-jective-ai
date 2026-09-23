@@ -16,6 +16,11 @@ import { syncAuthForm } from './features/auth/actions.js';
 import './styles/auth.css';
 import './styles/attachments.css';
 import './styles/task-editor.css';
+import './styles/profile.css';
+import { createProfilesService } from './features/profiles/service.js';
+import { createProfilesController } from './features/profiles/controller.js';
+import { createProposalsService } from './features/proposals/service.js';
+import { createProposalsController } from './features/proposals/controller.js';
 import { createAttachmentsClient } from './features/attachments/service.js';
 import { createAttachmentsController } from './features/attachments/controller.js';
 
@@ -28,7 +33,18 @@ const feedback = createFeedback({
   toastElement: document.querySelector('#toast'),
 });
 const motion = createMotion();
-const router = createRouter({ root, store, feedback, motion });
+let profiles;
+let proposals;
+const router = createRouter({
+  root,
+  store,
+  feedback,
+  motion,
+  onRoute: () => {
+    void profiles?.sync();
+    void proposals?.sync();
+  },
+});
 let supabase = null;
 try {
   supabase = createBrowserSupabase(config);
@@ -41,6 +57,7 @@ const authService = createAuthService({
   redirectUrl: window.location.origin,
 });
 const getAccessToken = async () => (await authService.getSession())?.access_token;
+profiles = createProfilesController({ store, router, service: createProfilesService(supabase) });
 const attachments = createAttachmentsController({
   store,
   service: createAttachmentsClient({ getAccessToken }),
@@ -71,11 +88,27 @@ const authController = createAuthController({
 });
 const catalog = createCatalogController({
   store,
-  repository: createTasksRepository(config),
+  repository: {
+    async list() {
+      if (!supabase) return createTasksRepository(config).list();
+      return createProposalsService(supabase).tasks();
+    },
+  },
   render: () => {
-    if (['#/catalog', '#/detail'].some((route) => window.location.hash.startsWith(route)))
+    if (
+      ['#/catalog', '#/detail', '#/dashboard', '#/my-tasks'].some((route) =>
+        window.location.hash.startsWith(route),
+      )
+    )
       router.render();
   },
+});
+proposals = createProposalsController({
+  store,
+  router,
+  feedback,
+  service: createProposalsService(supabase),
+  reloadCatalog: () => catalog.load(),
 });
 const unbind = bindEvents({
   store,
@@ -84,6 +117,8 @@ const unbind = bindEvents({
   catalog,
   authController,
   attachments,
+  profiles,
+  proposals,
   getAccessToken,
 });
 
@@ -112,6 +147,8 @@ if (import.meta.hot) {
     supabase?.auth.stopAutoRefresh();
     catalog.dispose();
     attachments.dispose();
+    profiles.dispose();
+    proposals.dispose();
     unbind();
     router.dispose();
     motion.dispose();

@@ -55,7 +55,7 @@ export function createDocumentExtractor({
     const { mime, extension } = validateAttachment(file.name, bytes.length);
     verifyFileBytes(bytes, extension);
     if (!apiKey?.trim())
-      throw new HttpError(503, 'AI_NOT_CONFIGURED', 'OpenAI не настроен на сервере.');
+      throw new HttpError(503, 'AI_NOT_CONFIGURED', 'ИИ не настроен на сервере.');
     let content;
     if (['txt', 'csv'].includes(extension)) {
       const text = new TextDecoder().decode(bytes);
@@ -107,8 +107,8 @@ export function createDocumentExtractor({
           response.status === 429 ? 429 : 502,
           'EXTRACTION_FAILED',
           response.status === 429
-            ? 'Достигнут лимит OpenAI. Повторите позже.'
-            : 'OpenAI не смог прочитать файл. Проверьте формат и отсутствие пароля; попробуйте PDF или скриншот.',
+            ? 'Достигнут лимит ИИ. Повторите позже.'
+            : 'ИИ не смог прочитать файл. Проверьте формат и отсутствие пароля; попробуйте PDF или скриншот.',
         );
       const payload = await response.json();
       if (payload.status !== 'completed') throw new Error('Incomplete');

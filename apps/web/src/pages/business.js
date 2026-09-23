@@ -1,50 +1,33 @@
-import { I, btn, stat } from '../components/ui.js';
+import { btn, I, stat } from '../components/ui.js';
 import { layout } from '../components/layout.js';
 import { taskRow } from '../components/task-row.js';
 import { esc } from '../shared/html.js';
-
+function owned(state) {
+  return state.catalog.items.filter((t) => t.ownerId === state.auth.user?.id && t.ownerId);
+}
+function taskList(state) {
+  if (state.catalog.status === 'loading' || state.catalog.status === 'idle')
+    return '<p role="status">Загрузка задач…</p>';
+  if (state.catalog.status === 'error')
+    return `<p role="alert">${esc(state.catalog.error)}</p>${btn('Повторить', 'retry-catalog', 'ghost')}`;
+  return `<div class="task-list">${
+    owned(state)
+      .map((t) => taskRow(t.title, t.industry, t.score, 'Опубликована', '', true, t.id))
+      .join('') || '<div class="card empty">У вас пока нет опубликованных задач.</div>'
+  }</div>`;
+}
 export function dashboard(state) {
-  const fullName = state.auth?.status === 'authenticated' ? state.auth.profile?.full_name : '';
+  const fullName = state.auth.profile?.full_name || '';
   return layout(
-    /* HTML */ `<div
-        class="row"
-        style="justify-content:space-between;align-items:end;flex-wrap:wrap"
-      >
-        <div>
-          <span class="eyebrow">Панель бизнеса</span>
-          <h1 class="page-title">Добро пожаловать${fullName ? `, ${esc(fullName)}` : ''}!</h1>
-          <p class="sub">Управляйте своими задачами и предложениями команд.</p>
-        </div>
-        ${btn(I('plus', 16) + ' Создать задачу', 'create')}
-      </div>
-      <div class="stats">
-        ${stat(4, 'Всего задач', 'list')}${stat(state.published ? 4 : 3, 'Опубликовано', 'check')}${stat(12, 'Откликов', 'users')}${stat(state.selected ? 2 : 1, 'Команда выбрана', 'team')}
-      </div>
-      <div class="section-head">
-        <h2 class="section-title">Мои задачи</h2>
-        <button class="text-btn" data-route="my-tasks">Смотреть все →</button>
-      </div>
-      <div class="task-list">
-        ${taskRow('Анализ оттока клиентов', 'FinTech', 82, 'Опубликована', '6 откликов', true)}${taskRow('AI-помощник поддержки', 'Telecom', 54, 'Черновик', '', false)}${state.published ? taskRow('Анализ и прогнозирование оттока клиентов', 'FinTech', state.rating, 'Опубликована', '0 откликов', true, 5) : ''}
-      </div>`,
+    `<div class="profile-toolbar"><div><span class="eyebrow">Панель бизнеса</span><h1 class="page-title">Добро пожаловать${fullName ? `, ${esc(fullName)}` : ''}!</h1><p class="sub">Управляйте своими задачами и предложениями команд.</p></div>${btn(I('plus', 16) + ' Создать задачу', 'create')}</div><div class="stats">${stat(owned(state).length, 'Опубликовано задач', 'list')}</div><div class="section-head"><h2 class="section-title">Мои задачи</h2><button class="text-btn" data-route="proposals">Открыть отклики →</button></div>${taskList(state)}`,
     'dashboard',
     'business',
     state.auth,
   );
 }
-
 export function myTasks(state) {
   return layout(
-    /* HTML */ `<div class="row" style="justify-content:space-between">
-        <div>
-          <h1 class="page-title">Мои задачи</h1>
-          <p class="sub">Следите за задачами на каждом этапе.</p>
-        </div>
-        ${btn(I('plus', 16) + ' Создать задачу', 'create')}
-      </div>
-      <div class="task-list" style="margin-top:30px">
-        ${taskRow('Анализ оттока клиентов', 'FinTech', 82, 'Опубликована', '6 откликов', true)}${taskRow('AI-помощник поддержки', 'Telecom', 54, 'Черновик', '', false)}${taskRow('Прогнозирование спроса', 'Retail', 94, 'Опубликована', '12 откликов', true, 1)}${state.published ? taskRow('Анализ и прогнозирование оттока клиентов', 'FinTech', state.rating, 'Опубликована', '0 откликов', true, 5) : ''}
-      </div>`,
+    `<div class="profile-toolbar"><h1 class="page-title">Мои задачи</h1>${btn('Создать задачу', 'create')}</div>${taskList(state)}`,
     'my-tasks',
     'business',
     state.auth,

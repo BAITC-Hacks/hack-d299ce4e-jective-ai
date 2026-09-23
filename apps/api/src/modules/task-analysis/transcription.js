@@ -55,17 +55,17 @@ export function createTranscriptionService({
         });
         if (!response.ok) {
           if (response.status === 429)
-            throw new HttpError(429, 'AI_RATE_LIMIT', 'Достигнут лимит OpenAI. Попробуйте позже.');
+            throw new HttpError(429, 'AI_RATE_LIMIT', 'Достигнут лимит ИИ. Попробуйте позже.');
           if ([401, 403].includes(response.status))
             throw new HttpError(
               502,
               'AI_AUTH_ERROR',
-              'OpenAI отклонил доступ. Проверьте серверный API-ключ.',
+              'ИИ отклонил доступ. Попробуйте позже.',
             );
           throw new HttpError(
             502,
             'TRANSCRIPTION_FAILED',
-            'OpenAI не смог распознать запись. Повторите попытку или запишите ещё раз.',
+            'ИИ не смог распознать запись. Повторите попытку или запишите ещё раз.',
           );
         }
         const value = await response.json();

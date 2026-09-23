@@ -36,7 +36,7 @@ function catalogCard(task) {
     ${tags(task.tags)}
     <div class="bottom">
       <span class="muted"
-        >${task.score < 40 ? 'Требует дополнительных уточнений' : `${esc(task.reply)} откликов`}</span
+        >${task.ownerId ? 'Открыта для откликов' : task.score < 40 ? 'Требует дополнительных уточнений' : `${esc(task.reply)} откликов`}</span
       >
       ${btn('Посмотреть задачу', `detail?id=${encodeURIComponent(task.id)}`, 'ghost small')}
     </div>
@@ -112,17 +112,18 @@ export function detail(state) {
 
   const [readiness, badgeClass] = level(task.score);
   const hasDemoFields = Number(task.id) === 2 || isPublished;
-  const sections = hasDemoFields
-    ? Object.entries(state.fields)
-        .map(
-          ([key, value]) =>
-            /* HTML */ `<section class="info-section">
-              <h3>${esc(key === 'Контакт и взаимодействие' ? 'Формат взаимодействия' : key)}</h3>
-              <p>${esc(value)}</p>
-            </section>`,
-        )
-        .join('')
-    : '';
+  const sections =
+    task.fields || hasDemoFields
+      ? Object.entries(task.fields || state.fields)
+          .map(
+            ([key, value]) =>
+              /* HTML */ `<section class="info-section">
+                <h3>${esc(key === 'Контакт и взаимодействие' ? 'Формат взаимодействия' : key)}</h3>
+                <p>${esc(value)}</p>
+              </section>`,
+          )
+          .join('')
+      : '';
 
   return layout(
     `${backLink}<div class="detail-grid" style="margin-top:0">
@@ -130,7 +131,7 @@ export function detail(state) {
       <div class="row">
         ${badge(esc(task.industry))}
         ${badge(`${esc(task.score)}/100 · ${readiness}`, badgeClass)}
-        <span class="muted right">Откликов: ${esc(task.reply)}</span>
+        <span class="muted right">${task.ownerId ? 'Открыта для откликов' : `Откликов: ${esc(task.reply)}`}</span>
       </div>
       <h1>${esc(task.title)}</h1>
       ${tags(task.tags)}
@@ -138,9 +139,10 @@ export function detail(state) {
       ${sections}
     </article>
     <aside class="card side-cta">
+      ${task.ownerId ? `<a class="btn ghost" href="#/profile?user=${esc(task.ownerId)}">Профиль заказчика</a>` : '<p class="hint">Демонстрационная задача</p>'}
       <h3>Хотите решить эту задачу?</h3>
       <p>Расскажите бизнесу, как ваша команда предлагает подойти к решению.</p>
-      ${btn('Предложить решение', 'offer')}
+      ${task.ownerId && role === 'student' ? btn('Предложить решение', 'offer') : task.ownerId && task.ownerId === state.auth.user?.id ? btn('Посмотреть отклики', 'proposals', 'primary') : ''}
       ${btn(state.saved ? 'Сохранено ✓' : I('bookmark', 15) + ' Сохранить', 'save-task', 'ghost')}
     </aside>
   </div>`,

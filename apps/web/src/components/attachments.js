@@ -8,15 +8,15 @@ export function attachmentsPanel(state) {
   const busy = attachmentsBusy(state);
   const labels = {
     uploading: 'Загрузка файла…',
-    analyzing: 'OpenAI читает файл…',
+    analyzing: 'ИИ читает файл…',
     uploaded: 'Ожидает анализа',
     ready: 'Обработан',
     error: 'Нужна повторная попытка',
     deleting: 'Удаление…',
   };
-  return `<section class="attachments-panel" aria-labelledby="attachments-title"><h3 id="attachments-title">Документы и скриншоты</h3><p class="hint">Приложите материалы вместо подробного описания. OpenAI извлечёт факты и учтёт выбранные файлы в вопросах и карточке.</p>
+  return `<section class="attachments-panel" aria-labelledby="attachments-title"><h3 id="attachments-title">Документы и скриншоты</h3><p class="hint">Приложите материалы вместо подробного описания. ИИ извлечёт факты и учтёт выбранные файлы в вопросах и карточке.</p>
     <div class="attachment-drop" data-attachment-drop tabindex="0" aria-label="Область загрузки файлов и вставки скриншотов"><label class="btn ghost attachment-picker" for="task-attachments">Прикрепить файл<input id="task-attachments" type="file" accept="${attachmentAccept}" multiple ${busy ? 'disabled' : ''}/></label><p class="hint">Перетащите файлы сюда или вставьте скриншот (Ctrl+V).<br>PDF, DOCX, XLSX, TXT, CSV, PNG, JPG, WebP · до 5 файлов по 10 МБ.</p></div>
-    <p class="hint">Файлы доступны только вам. При загрузке содержимое отправляется в OpenAI для анализа.</p>
+    <p class="hint">Файлы доступны только вам. При загрузке содержимое обрабатывается ИИ для анализа.</p>
     ${attachments.status === 'loading' ? '<p role="status">Загружаем сохранённые вложения…</p>' : ''}
     ${attachments.error ? `<p role="alert" class="attachment-error">${esc(attachments.error)}</p>` : ''}
     ${['idle', 'error'].includes(attachments.status) ? btn('Загрузить сохранённые вложения', 'attachments-reload', 'ghost small') : ''}

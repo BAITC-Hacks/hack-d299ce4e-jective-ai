@@ -1,5 +1,6 @@
 import * as pages from '../pages/index.js';
 import { pageTitle } from '../components/layout.js';
+import { profilePage, membersPage } from '../pages/profile.js';
 
 /** Keep confirmation tokens intact until the Supabase SDK has consumed the callback. */
 export function isAuthCallbackHash(hash) {
@@ -30,10 +31,12 @@ const routes = {
   'my-proposals': pages.myProposals,
   proposals: pages.proposals,
   team: (state) => pages.simple(state, 'team'),
-  profile: (state) => pages.simple(state, 'profile'),
+  profile: profilePage,
+  members: membersPage,
 };
 
-export function createRouter({ root, store, feedback, motion }) {
+export function createRouter({ root, store, feedback, motion, onRoute = () => {} }) {
+  let pendingProfile = null;
   function render({ scrollToTop = false } = {}) {
     if (isAuthCallbackHash(window.location.hash)) {
       root.innerHTML = '<div class="auth-loading" role="status">Подтверждаем вход…</div>';
@@ -53,6 +56,7 @@ export function createRouter({ root, store, feedback, motion }) {
       'my-proposals',
       'team',
       'profile',
+      'members',
     ];
     const businessPages = ['dashboard', 'my-tasks', 'create', 'clarify', 'editor', 'proposals'];
     const studentPages = ['student', 'my-proposals', 'team'];
@@ -61,8 +65,20 @@ export function createRouter({ root, store, feedback, motion }) {
       document.title = 'Вход — AI Sana';
       return;
     }
-    if (privatePages.includes(name) && auth.status !== 'authenticated') name = 'login';
+    if (privatePages.includes(name) && auth.status !== 'authenticated') {
+      if (name === 'profile' && window.location.hash.includes('?user='))
+        pendingProfile = window.location.hash;
+      name = 'login';
+    }
     if (auth.status === 'authenticated') {
+      if (pendingProfile && ['login', 'register'].includes(name)) {
+        const target = pendingProfile;
+        pendingProfile = null;
+        if (window.history?.replaceState) window.history.replaceState(null, '', target);
+        else window.location.hash = target;
+        render({ scrollToTop });
+        return;
+      }
       const home = auth.profile.role === 'business' ? 'dashboard' : 'student';
       if (
         ['login', 'register'].includes(name) ||
@@ -87,6 +103,7 @@ export function createRouter({ root, store, feedback, motion }) {
       name === 'home' ? 'AI Sana — реальные задачи, реальный опыт' : `${pageTitle(name)} — AI Sana`;
     if (scrollToTop) window.scrollTo(0, 0);
     motion.init(root);
+    onRoute();
   }
 
   function onHashChange() {

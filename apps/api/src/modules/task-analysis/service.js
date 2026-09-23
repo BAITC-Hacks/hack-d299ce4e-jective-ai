@@ -147,7 +147,7 @@ function invalidOutput() {
   return new HttpError(
     502,
     'AI_INVALID_RESPONSE',
-    'OpenAI вернул некорректный или пустой результат. Повторите анализ.',
+    'ИИ вернул некорректный или пустой результат. Повторите анализ.',
   );
 }
 
@@ -166,7 +166,7 @@ export function createTaskAnalysisService({
         throw new HttpError(
           503,
           'AI_NOT_CONFIGURED',
-          'Добавьте OPENAI_API_KEY в apps/api/.env и перезапустите API-сервер.',
+          'ИИ временно недоступен. Попробуйте позже.',
         );
       const controller = new AbortController();
       const abort = () => controller.abort();
@@ -225,24 +225,24 @@ export function createTaskAnalysisService({
             throw new HttpError(
               502,
               'AI_AUTH_ERROR',
-              'OpenAI отклонил ключ или доступ. Проверьте ключ и разрешения проекта.',
+              'ИИ отклонил ключ или доступ. Попробуйте позже.',
             );
           if (response.status === 429)
             throw new HttpError(
               429,
               'AI_RATE_LIMIT',
-              'Достигнут лимит OpenAI. Проверьте баланс и лимиты проекта или повторите позже.',
+              'Достигнут лимит ИИ. Попробуйте позже.',
             );
           if (response.status === 400 || response.status === 404)
             throw new HttpError(
               502,
               'AI_CONFIGURATION_ERROR',
-              'OpenAI отклонил запрос. Проверьте OPENAI_MODEL и доступ к модели.',
+              'ИИ отклонил запрос. Попробуйте позже.',
             );
           throw new HttpError(
             502,
             'AI_UNAVAILABLE',
-            'OpenAI временно недоступен. Повторите попытку.',
+            'ИИ временно недоступен. Повторите попытку.',
           );
         }
         const payload = await response.json();
@@ -253,7 +253,7 @@ export function createTaskAnalysisService({
           throw new HttpError(
             422,
             'AI_REFUSAL',
-            'OpenAI не смог обработать это описание. Переформулируйте задачу.',
+            'ИИ не смог обработать это описание. Переформулируйте задачу.',
           );
         if (payload.status !== 'completed') throw invalidOutput();
         const raw = content
@@ -266,14 +266,14 @@ export function createTaskAnalysisService({
           throw new HttpError(
             504,
             'AI_TIMEOUT',
-            'Превышено время ожидания OpenAI. Повторите попытку.',
+            'Превышено время ожидания ИИ. Повторите попытку.',
           );
         if (error instanceof HttpError) throw error;
         if (error instanceof SyntaxError) throw invalidOutput();
         throw new HttpError(
           502,
           'AI_UNAVAILABLE',
-          'Не удалось связаться с OpenAI. Повторите попытку.',
+          'Не удалось связаться с ИИ. Повторите попытку.',
         );
       } finally {
         clearTimeout(timer);
